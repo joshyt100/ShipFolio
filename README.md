@@ -12,7 +12,7 @@ ShipFolio transforms your GitHub contributions into a beautiful, shareable portf
 
 ## 🛠 Tech Stack
 
-- **Frontend:** Next.js 15 (Turbopack), React, TailwindCSS, ShadCN UI
+- **Frontend:** Next.js 15 (Turbopack), React, TailwindCSS, ShadCN UI, DnD kit
 - **Backend:** NextAuth.js (GitHub OAuth), Prisma, PostgreSQL
 
 ## 🚧 Status
