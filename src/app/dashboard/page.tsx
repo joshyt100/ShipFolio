@@ -37,6 +37,7 @@ import {
   X,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { ModeToggle } from "~/components/mode-toggle/ModeToggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -503,13 +504,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 mr-2">
-              <Sun className={`h-4 w-4 ${isDarkTheme ? "text-gray-500" : "text-black"}`} />
-              <Switch
-                checked={isDarkTheme}
-                onCheckedChange={toggleTheme}
-                className={isDarkTheme ? "data-[state=checked]:bg-white" : "data-[state=unchecked]:bg-gray-200"}
-              />
-              <Moon className={`h-4 w-4 ${isDarkTheme ? "text-white" : "text-gray-500"}`} />
+              <ModeToggle />
             </div>
             <Button
               variant="outline"

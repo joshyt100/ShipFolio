@@ -1,8 +1,8 @@
-// app/layout.tsx
 import "~/styles/globals.css";
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Providers } from "./providers";
+import { ThemeProvider } from "~/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "Create T3 App",
@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
+// Define the Geist font variable
 const geist = Geist({
   subsets: ["latin"],
   variable: "--font-geist-sans",
@@ -18,10 +19,18 @@ const geist = Geist({
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // To avoid hydration issues, ensure consistent class names between SSR and CSR
+  const isClient = typeof window !== "undefined";
+
   return (
-    <html lang="en" className={geist.variable}>
+    <html lang="en" className={isClient ? geist.variable : "default-font-class"}>
       <body>
-        <Providers>{children}</Providers>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+        >
+          <Providers>{children}</Providers>
+        </ThemeProvider>
       </body>
     </html>
   );
