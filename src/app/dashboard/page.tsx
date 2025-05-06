@@ -139,7 +139,7 @@ export default function DashboardPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [userProfile, setUserProfile] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [featuredPRs, setFeaturedPRs] = useState<PullRequest[]>([])
   const [loadingPRs, setLoadingPRs] = useState(true)
@@ -285,36 +285,36 @@ export default function DashboardPage() {
         const totalStars = repos.reduce((sum: number, r: any) => sum + (r.stargazers_count || 0), 0)
         const totalForks = repos.reduce((sum: number, r: any) => sum + (r.forks_count || 0), 0)
 
-        const langTotals: Record<string, number> = {}
-
-        // Only try to fetch languages if we have repos
-        if (repos.length > 0) {
-          try {
-            await Promise.all(
-              repos.map(async (r: any) => {
-                try {
-                  const langs = await safeFetch(r.languages_url)
-                  for (const [lang, bytes] of Object.entries<number>(langs)) {
-                    langTotals[lang] = (langTotals[lang] || 0) + bytes
-                  }
-                } catch (err) {
-                  console.error(`Failed to fetch languages for ${r.name}:`, err)
-                  // Continue with other repos
-                }
-              }),
-            )
-          } catch (err) {
-            console.error("Failed processing languages:", err)
-            // Continue with empty languages
-          }
-        }
-
-        const topLangs =
-          Object.entries(langTotals)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 3)
-            .map(([lang]) => lang)
-            .join(", ") || "N/A"
+        // const langTotals: Record<string, number> = {}
+        //
+        // // Only try to fetch languages if we have repos
+        // if (repos.length > 0) {
+        //   try {
+        //     await Promise.all(
+        //       repos.map(async (r: any) => {
+        //         try {
+        //           const langs = await safeFetch(r.languages_url)
+        //           for (const [lang, bytes] of Object.entries<number>(langs)) {
+        //             langTotals[lang] = (langTotals[lang] || 0) + bytes
+        //           }
+        //         } catch (err) {
+        //           console.error(`Failed to fetch languages for ${r.name}:`, err)
+        //           // Continue with other repos
+        //         }
+        //       }),
+        //     )
+        //   } catch (err) {
+        //     console.error("Failed processing languages:", err)
+        //     // Continue with empty languages
+        //   }
+        // }
+        //
+        // const topLangs =
+        //   Object.entries(langTotals)
+        //     .sort(([, a], [, b]) => b - a)
+        //     .slice(0, 3)
+        //     .map(([lang]) => lang)
+        //     .join(", ") || "N/A"
 
         setBlocks([
           {
@@ -355,7 +355,8 @@ export default function DashboardPage() {
           {
             id: "languages",
             title: "Top Languages",
-            content: topLangs,
+            // content: topLangs,
+            content: "N/A",
             icon: <Code className="h-5 w-5" />,
             colorIndex: 2,
           },
