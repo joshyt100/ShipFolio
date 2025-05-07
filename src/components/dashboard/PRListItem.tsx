@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   GripVertical,
-  LinkIcon,
   Clock,
   ArrowUpRight,
   GitPullRequest,
@@ -49,6 +48,12 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
     const isOpen = item.state === "open";
     const isClosedUnmerged = item.state === "closed" && !isMerged;
 
+    // For debugging - you can add this to check what data is being received
+    // console.log(`PR #${item.number} data:`, { 
+    //   comments: item.commentsCount,
+    //   approvals: item.approvedReviewsCount 
+    // });
+
     const formattedDate = useMemo(() => {
       if (!item.createdAt) return "Date N/A";
       const date = new Date(item.createdAt);
@@ -73,6 +78,10 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
       if (isOpen) return GitPullRequest;
       return XCircle;
     }, [isMerged, isOpen]);
+
+    // Ensure we have valid numbers for comments and approvals
+    const commentsCount = typeof item.commentsCount === 'number' ? item.commentsCount : 0;
+    const approvedReviewsCount = typeof item.approvedReviewsCount === 'number' ? item.approvedReviewsCount : 0;
 
     return (
       <div
@@ -188,7 +197,7 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
                 </div>
               )}
 
-              {/* Date and Fake Stats */}
+              {/* Date and Stats */}
               <div className="flex items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
                 <Clock className="h-3 w-3 mr-1" />
                 <span>{formattedDate}</span>
@@ -198,7 +207,7 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
                     <TooltipTrigger asChild>
                       <div className="flex items-center gap-1">
                         <MessageSquare className="h-3 w-3" />
-                        <span>{Math.floor(Math.random() * 10)}</span>
+                        <span>{commentsCount}</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>Comments</TooltipContent>
@@ -210,7 +219,7 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
                     <TooltipTrigger asChild>
                       <div className="flex items-center gap-1">
                         <ThumbsUp className="h-3 w-3" />
-                        <span>{Math.floor(Math.random() * 5)}</span>
+                        <span>{approvedReviewsCount}</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>Approvals</TooltipContent>
@@ -245,4 +254,3 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
 );
 
 PRListItem.displayName = "PRListItem";
-

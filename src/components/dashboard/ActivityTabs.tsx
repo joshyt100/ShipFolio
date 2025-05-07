@@ -38,10 +38,10 @@ export function ActivityTabs({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6"
+      className="mb-8  gap-6"
     >
-      <div className="lg:col-span-2"> {/* Assuming TopLanguagesCard would be lg:col-span-1 */}
-        <Tabs defaultValue="overview">
+      <div className=""> {/* Assuming TopLanguagesCard would be lg:col-span-1 */}
+        <Tabs defaultValue="overview w-full">
           <TabsList className="grid w-full grid-cols-2 md:w-auto md:inline-flex rounded-lg bg-neutral-100 dark:bg-neutral-800 p-1">
             <TabsTrigger
               value="overview"

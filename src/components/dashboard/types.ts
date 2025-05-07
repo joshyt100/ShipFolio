@@ -1,5 +1,7 @@
-// app/dashboard/types.ts
+// components/dashboard/types.ts
 import type React from "react";
+
+// --- Core Data Structures for UI ---
 
 export interface Block {
   id: string;
@@ -17,7 +19,7 @@ export interface UserProfile {
   name: string | null;
   bio: string | null;
   login: string;
-  createdAt: string;
+  createdAt: string; // ISO 8601 date string
 }
 
 export interface PullRequest {
@@ -35,11 +37,14 @@ export interface PullRequest {
     login: string;
     avatar_url: string;
   };
+  commentsCount: number;
+  approvedReviewsCount: number;
 }
 
 export interface VirtualizedPRItem extends PullRequest {
   id_str: string;
 }
+
 export type PRState = PullRequest["state"];
 
 export interface LanguageStat {
@@ -59,6 +64,7 @@ export interface ContributionTypeStat {
 }
 
 // --- GraphQL Response Structures ---
+
 export interface GraphQLLanguageEdge {
   size: number;
   node: {
@@ -74,11 +80,28 @@ export interface GraphQLRepositoryNodeForStats {
   } | null;
 }
 
+// NEW/UPDATED Types for Contribution Calendar
+export interface GraphQLContributionDay {
+  contributionCount: number;
+  date: string; // "YYYY-MM-DD"
+  weekday: number; // 0 (Sunday) to 6 (Saturday)
+}
+
+export interface GraphQLContributionWeek {
+  contributionDays: GraphQLContributionDay[];
+}
+
+export interface GraphQLContributionCalendar {
+  totalContributions: number;
+  weeks: GraphQLContributionWeek[];
+}
+
 export interface GraphQLContributionsCollection {
   totalCommitContributions: number;
   totalIssueContributions: number;
   totalPullRequestContributions: number;
   totalPullRequestReviewContributions: number;
+  contributionCalendar: GraphQLContributionCalendar; // ADDED THIS
 }
 
 export interface GraphQLUserStatsData {
@@ -101,6 +124,7 @@ export interface GraphQLUserStatsData {
 export interface GraphQLSearchEdge<TNode> {
   node: TNode;
 }
+
 export interface GraphQLPullRequestNode {
   id: string;
   databaseId: number | null;
@@ -118,7 +142,14 @@ export interface GraphQLPullRequestNode {
     login: string;
     avatarUrl: string;
   } | null;
+  comments: {
+    totalCount: number;
+  };
+  reviews: {
+    totalCount: number;
+  } | null;
 }
+
 export interface GraphQLUserPullRequestsData {
   search: {
     issueCount: number;
@@ -126,15 +157,16 @@ export interface GraphQLUserPullRequestsData {
   };
 }
 
-// Constants previously in page.tsx
+// --- Constants ---
 export const PR_LIST_STORAGE_KEY = "dashboardVPRListOrder_v3_graphql";
-export const PR_ITEM_ESTIMATED_HEIGHT = 128; // px
+export const PR_ITEM_ESTIMATED_HEIGHT = 128;
 export const MAX_TOP_LANGUAGES_DISPLAY = 6;
 
 export const GITHUB_CALENDAR_LIGHT_THEME_COLORS: [string, string, string, string, string] = ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"];
 export const GITHUB_CALENDAR_DARK_THEME_COLORS: [string, string, string, string, string] = ["#010409", "#0e4429", "#006d32", "#26a641", "#39d353"];
 
-// GraphQL Queries previously in page.tsx
+// --- GraphQL Queries ---
+// MODIFIED USER_STATS_QUERY
 export const USER_STATS_QUERY = `
   query UserStats($username: String!) {
     user(login: $username) {
@@ -165,11 +197,21 @@ export const USER_STATS_QUERY = `
           }
         }
       }
-      contributionsCollection { # For Contribution Breakdown (defaults to last year)
+      contributionsCollection { # Defaults to last year
         totalCommitContributions
         totalIssueContributions
         totalPullRequestContributions
         totalPullRequestReviewContributions
+        contributionCalendar { # ADDED THIS SECTION
+          totalContributions
+          weeks {
+            contributionDays {
+              contributionCount
+              date
+              weekday
+            }
+          }
+        }
       }
     }
   }
@@ -198,9 +240,41 @@ export const USER_PULL_REQUESTS_QUERY = `
               login
               avatarUrl
             }
+            comments {
+              totalCount
+            }
+            reviews(states: APPROVED, first: 0) {
+              totalCount
+            }
           }
         }
       }
     }
   }
 `;
+
+export function transformGraphQLPRToUIPR(graphqlPR: GraphQLPullRequestNode): PullRequest | null {
+  if (!graphqlPR.databaseId || !graphqlPR.author) {
+    return null;
+  }
+  let uiState: PullRequest["state"];
+  switch (graphqlPR.state) {
+    case "OPEN": uiState = "open"; break;
+    case "CLOSED": uiState = graphqlPR.merged ? "merged" : "closed"; break;
+    case "MERGED": uiState = "merged"; break;
+    default: uiState = "closed";
+  }
+  const repoName = graphqlPR.repository.nameWithOwner.split('/')[1] || graphqlPR.repository.nameWithOwner;
+  return {
+    id: graphqlPR.databaseId,
+    title: graphqlPR.title,
+    number: graphqlPR.number,
+    url: graphqlPR.url,
+    state: uiState,
+    createdAt: graphqlPR.createdAt,
+    repository: { name: repoName, url: graphqlPR.repository.url },
+    user: { login: graphqlPR.author.login, avatar_url: graphqlPR.author.avatarUrl },
+    commentsCount: graphqlPR.comments.totalCount,
+    approvedReviewsCount: graphqlPR.reviews?.totalCount ?? 0,
+  };
+}
