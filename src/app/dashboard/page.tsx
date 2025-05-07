@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { motion } from "framer-motion"; // Import motion
 
 import {
   PointerSensor,
@@ -38,9 +39,8 @@ import {
   USER_STATS_QUERY,
   USER_PULL_REQUESTS_QUERY,
   MAX_TOP_LANGUAGES_DISPLAY,
-} from "../../components/dashboard/types"; // Assuming types.ts is in the same directory or adjust path
+} from "../../components/dashboard/types";
 
-// Import new components
 import { DashboardLoadingScreen } from "@/components/dashboard/DashboardLoadingScreen";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { UserProfileDisplay } from "@/components/dashboard/UserProfileDisplay";
@@ -49,12 +49,32 @@ import { PullRequestSection } from "@/components/dashboard/PullRequestSection";
 import { ActivityTabs } from "@/components/dashboard/ActivityTabs";
 import { StatisticsGrid } from "@/components/dashboard/StatisticsGrid";
 import { AuthPrompt } from "@/components/dashboard/AuthPrompt";
-// TopLanguagesCard is commented out, so no active import needed for it unless it's used.
+
+// Define UserProfileSkeleton either here or import from a separate file
+const UserProfileSkeleton = () => (
+  <div
+    className="animate-pulse bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4 md:p-6 mb-6 shadow-sm"
+    style={{ minHeight: '180px' }} // Adjust minHeight to match UserProfileDisplay's typical height
+  >
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="h-20 w-20 md:h-24 md:w-24 bg-neutral-300 dark:bg-neutral-700 rounded-full shrink-0"></div>
+      <div className="flex-1 w-full">
+        <div className="h-6 md:h-7 bg-neutral-300 dark:bg-neutral-700 rounded w-1/2 sm:w-48 mb-2"></div>
+        <div className="h-4 bg-neutral-300 dark:bg-neutral-700 rounded w-3/4 sm:w-64 mb-1.5"></div>
+        <div className="h-4 bg-neutral-300 dark:bg-neutral-700 rounded w-full sm:w-1/2 md:w-1/3"></div>
+      </div>
+    </div>
+    <div className="mt-3 sm:mt-4 space-y-2">
+      <div className="h-3.5 bg-neutral-300 dark:bg-neutral-700 rounded w-full"></div>
+      <div className="h-3.5 bg-neutral-300 dark:bg-neutral-700 rounded w-5/6"></div>
+    </div>
+  </div>
+);
 
 export default function DashboardPage() {
   const { data: session, status: sessionStatus } = useSession();
-  const [currentUsername, _setUsernameInternal] = useState("ThePrimeagen"); // Default user
-  const [isDarkTheme, setIsDarkTheme] = useState(true); // Default to dark or read from preference
+  const [currentUsername, _setUsernameInternal] = useState("ThePrimeagen");
+  const [isDarkTheme, setIsDarkTheme] = useState(true);
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -67,13 +87,14 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [activeStatBlockId, setActiveStatBlockId] = useState<string | null>(null);
+  const [activeStatBlockId, setActiveStatBlockId] = useState<string | null>(
+    null
+  );
 
   const setUsername = (newUsername: string) => {
     if (newUsername && newUsername.trim() && newUsername.trim() !== currentUsername) {
-      setError(null); // Clear previous errors
+      setError(null);
       _setUsernameInternal(newUsername.trim());
-      // Data fetching will be triggered by useEffect dependencies on currentUsername
     }
   };
 
@@ -84,7 +105,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Theme persistence
   useEffect(() => {
     const storedTheme = localStorage.getItem("github-dashboard-theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -98,7 +118,6 @@ export default function DashboardPage() {
 
   const toggleTheme = useCallback(() => setIsDarkTheme((prev) => !prev), []);
 
-  // Refresh logic
   useEffect(() => {
     if (refreshing && !loadingStats && !loadingPRs) {
       setRefreshing(false);
@@ -108,11 +127,8 @@ export default function DashboardPage() {
   const refreshAll = useCallback(() => {
     setError(null);
     setRefreshing(true);
-    // Data fetching useEffects will pick up 'refreshing' or 'currentUsername' change
   }, []);
 
-
-  // Fetch Pull Requests
   useEffect(() => {
     async function fetchPRs() {
       if (!currentUsername || sessionStatus !== "authenticated" || !session) {
@@ -123,7 +139,7 @@ export default function DashboardPage() {
         return;
       }
       setLoadingPRs(true);
-      setError(null); // Clear previous PR errors before new fetch
+      // setError(null); // Cleared on refreshAll or username change
 
       try {
         const prSearchString = `author:${currentUsername} type:pr sort:updated-desc`;
@@ -139,7 +155,7 @@ export default function DashboardPage() {
               if (!edge?.node || edge.node.databaseId === null || !edge.node.author) return null;
               let state: PullRequest["state"] = "closed";
               if (edge.node.state === "OPEN") state = "open";
-              else if (edge.node.merged || edge.node.state === "MERGED") state = "merged"; // Check merged boolean as well
+              else if (edge.node.merged || edge.node.state === "MERGED") state = "merged";
               return {
                 id: edge.node.databaseId, title: edge.node.title, number: edge.node.number,
                 url: edge.node.url, state: state, createdAt: edge.node.createdAt,
@@ -167,7 +183,7 @@ export default function DashboardPage() {
     if (currentUsername && sessionStatus === 'authenticated') {
       fetchPRs();
     } else if (sessionStatus === 'loading') {
-      setLoadingPRs(true); // Show loading if session is loading
+      setLoadingPRs(true);
     } else {
       setLoadingPRs(false);
       setFeaturedPRs([]);
@@ -175,9 +191,8 @@ export default function DashboardPage() {
         setError("Please sign in to view pull requests.");
       }
     }
-  }, [currentUsername, refreshing, session, sessionStatus, error]); // Added error to dependency to avoid re-fetching if error is already set from other sources.
+  }, [currentUsername, refreshing, session, sessionStatus, error]);
 
-  // Fetch User Stats and Related Data (Profile, Languages, Contributions)
   useEffect(() => {
     async function loadUserStatsAndRelatedData() {
       if (!currentUsername || sessionStatus !== "authenticated" || !session) {
@@ -188,9 +203,12 @@ export default function DashboardPage() {
         return;
       }
       setLoadingStats(true);
-      setError(null); // Clear previous stats errors
-      // Clear data before fetching new user's data
-      setUserProfile(null); setBlocks([]); setTopLanguages([]); setContributionBreakdown([]);
+      // setError(null); // Cleared on refreshAll or username change
+
+      // Clear previous user's data to ensure skeletons show for new user if applicable
+      if (!refreshing) { // Avoid clearing if it's just a refresh for the same user
+        setUserProfile(null); setBlocks([]); setTopLanguages([]); setContributionBreakdown([]);
+      }
 
 
       try {
@@ -214,7 +232,7 @@ export default function DashboardPage() {
           if (profileData.createdAt) {
             const memberForMs = new Date().getTime() - new Date(profileData.createdAt).getTime();
             const years = Math.floor(memberForMs / (1000 * 60 * 60 * 24 * 365.25));
-            if (years < 0) yearsOnGitHubText = "N/A"; // Should not happen
+            if (years < 0) yearsOnGitHubText = "N/A";
             else if (years < 1) yearsOnGitHubText = "< 1 year";
             else yearsOnGitHubText = `${years} year${years !== 1 ? "s" : ""}`;
           }
@@ -228,7 +246,6 @@ export default function DashboardPage() {
             { id: "years_on_github", title: "Years on GitHub", content: yearsOnGitHubText, icon: <CalendarIcon className="h-5 w-5" />, colorIndex: 2 },
           ]);
 
-          // Process languages
           const languageMap = new Map<string, { size: number; color: string | null }>();
           profileData.repositories.nodes?.forEach(repo => {
             repo.languages?.edges?.forEach(langEdge => {
@@ -251,7 +268,6 @@ export default function DashboardPage() {
             .slice(0, MAX_TOP_LANGUAGES_DISPLAY);
           setTopLanguages(sortedLanguages);
 
-          // Process Contribution Breakdown
           if (profileData.contributionsCollection) {
             const contribs = profileData.contributionsCollection;
             const rawBreakdown = [
@@ -264,12 +280,11 @@ export default function DashboardPage() {
             const formattedBreakdown: ContributionTypeStat[] = rawBreakdown.map(item => ({
               ...item,
               percentage: totalBreakdownContributions > 0 ? parseFloat(((item.count / totalBreakdownContributions) * 100).toFixed(1)) : 0,
-            })).sort((a, b) => b.count - a.count); // Sort by count desc
+            })).sort((a, b) => b.count - a.count);
             setContributionBreakdown(formattedBreakdown);
           } else {
             setContributionBreakdown([]);
           }
-
         } else {
           setUserProfile(null); setBlocks([]); setTopLanguages([]); setContributionBreakdown([]);
           if (!error) setError(`User "${currentUsername}" not found or data is inaccessible.`);
@@ -285,7 +300,7 @@ export default function DashboardPage() {
     if (currentUsername && sessionStatus === 'authenticated') {
       loadUserStatsAndRelatedData();
     } else if (sessionStatus === 'loading') {
-      setLoadingStats(true); // Show loading if session is loading
+      setLoadingStats(true);
     } else {
       setLoadingStats(false);
       setUserProfile(null); setBlocks([]); setTopLanguages([]); setContributionBreakdown([]);
@@ -293,11 +308,8 @@ export default function DashboardPage() {
         setError("Please sign in to view user statistics.");
       }
     }
-    // }, [currentUsername, refreshing, session, sessionStatus]); // Removed 'error' from deps here to allow re-fetch on user change even if prior error
   }, [currentUsername, refreshing, session, sessionStatus, error]);
 
-
-  // DND for Stat Blocks
   const dndStatSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const handleDragStartSB = useCallback((event: DragStartEvent) => setActiveStatBlockId(event.active.id as string), []);
   const handleDragEndSB = useCallback((event: DragEndEvent) => {
@@ -314,10 +326,7 @@ export default function DashboardPage() {
   const handleDragCancelSB = useCallback(() => setActiveStatBlockId(null), []);
   const activeSBData = useMemo(() => blocks.find((b) => b.id === activeStatBlockId), [activeStatBlockId, blocks]);
 
-
-  // Initial loading state for the whole page
   if (sessionStatus === 'loading' || ((loadingStats || loadingPRs) && !refreshing && !error && !userProfile && featuredPRs.length === 0)) {
-    // More robust initial loading: check if essential data isn't there yet and we are loading
     return <DashboardLoadingScreen />;
   }
 
@@ -336,9 +345,37 @@ export default function DashboardPage() {
           sessionStatus={sessionStatus}
         />
 
-        {userProfile && (
-          <UserProfileDisplay userProfile={userProfile} currentUsername={currentUsername} />
-        )}
+        {/* --- Profile Display Area --- */}
+        {sessionStatus === 'authenticated' && currentUsername ? (
+          (loadingStats && !userProfile && !error) ? (
+            <UserProfileSkeleton />
+          ) : userProfile ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <UserProfileDisplay userProfile={userProfile} currentUsername={currentUsername} />
+            </motion.div>
+          ) : !loadingStats && !userProfile ? (
+            <div
+              className="p-4 md:p-6 mb-6 text-center text-neutral-500 dark:text-neutral-400 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg flex items-center justify-center"
+              style={{ minHeight: '180px' }}
+            >
+              Profile for "<strong>{currentUsername}</strong>" {error && !refreshing ? 'could not be loaded.' : 'not found or is not available.'}
+            </div>
+          ) : ( // Fallback if error is set, to maintain space. DashboardErrorAlert will show the error.
+            <div className="mb-6" style={{ minHeight: '180px' }}></div>
+          )
+        ) : sessionStatus === 'unauthenticated' && currentUsername ? (
+          <div
+            className="my-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 dark:bg-yellow-900/50 dark:border-yellow-600 dark:text-yellow-300 rounded-md shadow-sm text-center flex items-center justify-center"
+            style={{ minHeight: '100px' }}
+          >
+            Please sign in to view the full profile for <strong className="font-semibold">{currentUsername}</strong>.
+          </div>
+        ) : null}
+        {/* --- End Profile Display Area --- */}
 
         <DashboardErrorAlert error={error} currentUsername={currentUsername} refreshing={refreshing} />
 
@@ -354,8 +391,6 @@ export default function DashboardPage() {
           contributionBreakdown={contributionBreakdown}
           loadingStats={loadingStats}
         />
-
-        {/* TopLanguagesCard would be part of ActivityTabs or a separate section if active */}
 
         <StatisticsGrid
           blocks={blocks}
@@ -373,7 +408,6 @@ export default function DashboardPage() {
         />
 
         <AuthPrompt sessionStatus={sessionStatus} loadingStats={loadingStats} loadingPRs={loadingPRs} />
-
       </div>
     </div>
   );

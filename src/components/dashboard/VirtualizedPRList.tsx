@@ -217,7 +217,7 @@ export function VirtualizedPRList({
         </SortableContext>
         <DragOverlay dropAnimation={dropAnimation}>
           {activeId && activeItem ? (
-            <div className="px-2 w-full" style={{ height: `${PR_ITEM_ESTIMATED_HEIGHT}px` }}>
+            <div className="px-2 w-full " style={{ height: `${PR_ITEM_ESTIMATED_HEIGHT}px` }}>
               <PRListItem item={activeItem} isDragging isOverlay />
             </div>
           ) : null}
