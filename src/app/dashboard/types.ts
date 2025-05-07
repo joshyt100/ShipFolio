@@ -1,0 +1,207 @@
+// app/dashboard/types.ts
+import type React from "react";
+
+export interface Block {
+  id: string;
+  title: string;
+  content: string;
+  icon: React.ReactNode;
+  colorIndex: number;
+}
+
+export interface UserProfile {
+  followers: number;
+  public_gists: number;
+  public_repos: number;
+  avatar_url: string | null;
+  name: string | null;
+  bio: string | null;
+  login: string;
+  createdAt: string;
+}
+
+export interface PullRequest {
+  id: number;
+  title: string;
+  number: number;
+  url: string;
+  state: "open" | "closed" | "merged";
+  createdAt: string;
+  repository: {
+    name: string;
+    url: string;
+  };
+  user: {
+    login: string;
+    avatar_url: string;
+  };
+}
+
+export interface VirtualizedPRItem extends PullRequest {
+  id_str: string;
+}
+export type PRState = PullRequest["state"];
+
+export interface LanguageStat {
+  name: string;
+  size: number;
+  color: string | null;
+  percentage: number;
+}
+
+export interface ContributionTypeStat {
+  type: "commits" | "pullRequests" | "reviews" | "issues";
+  label: string;
+  count: number;
+  percentage: number;
+  icon: React.ReactNode;
+  colorClass: string;
+}
+
+// --- GraphQL Response Structures ---
+export interface GraphQLLanguageEdge {
+  size: number;
+  node: {
+    name: string;
+    color: string | null;
+  };
+}
+export interface GraphQLRepositoryNodeForStats {
+  stargazerCount: number;
+  forkCount: number;
+  languages: {
+    edges: GraphQLLanguageEdge[] | null;
+  } | null;
+}
+
+export interface GraphQLContributionsCollection {
+  totalCommitContributions: number;
+  totalIssueContributions: number;
+  totalPullRequestContributions: number;
+  totalPullRequestReviewContributions: number;
+}
+
+export interface GraphQLUserStatsData {
+  user: {
+    name: string | null;
+    login: string;
+    bio: string | null;
+    avatarUrl: string;
+    createdAt: string;
+    followers: { totalCount: number };
+    gists: { totalCount: number };
+    repositories: {
+      totalCount: number;
+      nodes: GraphQLRepositoryNodeForStats[] | null;
+    };
+    contributionsCollection: GraphQLContributionsCollection | null;
+  } | null;
+}
+
+export interface GraphQLSearchEdge<TNode> {
+  node: TNode;
+}
+export interface GraphQLPullRequestNode {
+  id: string;
+  databaseId: number | null;
+  title: string;
+  number: number;
+  url: string;
+  state: "OPEN" | "CLOSED" | "MERGED";
+  createdAt: string;
+  merged: boolean;
+  repository: {
+    nameWithOwner: string;
+    url: string;
+  };
+  author: {
+    login: string;
+    avatarUrl: string;
+  } | null;
+}
+export interface GraphQLUserPullRequestsData {
+  search: {
+    issueCount: number;
+    edges: GraphQLSearchEdge<GraphQLPullRequestNode>[] | null;
+  };
+}
+
+// Constants previously in page.tsx
+export const PR_LIST_STORAGE_KEY = "dashboardVPRListOrder_v3_graphql";
+export const PR_ITEM_ESTIMATED_HEIGHT = 128; // px
+export const MAX_TOP_LANGUAGES_DISPLAY = 6;
+
+export const GITHUB_CALENDAR_LIGHT_THEME_COLORS: [string, string, string, string, string] = ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"];
+export const GITHUB_CALENDAR_DARK_THEME_COLORS: [string, string, string, string, string] = ["#010409", "#0e4429", "#006d32", "#26a641", "#39d353"];
+
+// GraphQL Queries previously in page.tsx
+export const USER_STATS_QUERY = `
+  query UserStats($username: String!) {
+    user(login: $username) {
+      name
+      login
+      bio
+      avatarUrl
+      createdAt
+      followers {
+        totalCount
+      }
+      gists(privacy: PUBLIC) {
+        totalCount
+      }
+      repositories(first: 100, ownerAffiliations: OWNER, isFork: false, orderBy: {field: STARGAZERS, direction: DESC}) {
+        totalCount
+        nodes {
+          stargazerCount
+          forkCount
+          languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {
+            edges {
+              size
+              node {
+                name
+                color
+              }
+            }
+          }
+        }
+      }
+      contributionsCollection { # For Contribution Breakdown (defaults to last year)
+        totalCommitContributions
+        totalIssueContributions
+        totalPullRequestContributions
+        totalPullRequestReviewContributions
+      }
+    }
+  }
+`;
+
+export const USER_PULL_REQUESTS_QUERY = `
+  query UserPullRequests($searchQueryString: String!, $first: Int = 15) {
+    search(query: $searchQueryString, type: ISSUE, first: $first) {
+      issueCount
+      edges {
+        node {
+          ... on PullRequest {
+            id
+            databaseId
+            title
+            number
+            url
+            state
+            createdAt
+            merged
+            repository {
+              nameWithOwner
+              url
+            }
+            author {
+              login
+              avatarUrl
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
