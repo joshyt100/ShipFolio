@@ -16,9 +16,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
-import { SortableStatBlock } from "./SortableStatBlock";
+import { SortableStatBlock } from "./SortableStatBlock"; // Ensure this component also gets styling updates
 import { cn } from "@/lib/utils";
-import type { Block, UserProfile } from "@/app/dashboard/types";
+import type { Block, UserProfile } from "@/app/dashboard/types"; // Adjusted path if necessary
 import type { SessionContextValue } from "next-auth/react";
 
 
@@ -31,10 +31,10 @@ interface StatisticsGridProps {
   onDragEnd: (event: DragEndEvent) => void;
   onDragCancel: () => void;
   activeBlockId: string | null;
-  activeBlockData: Block | undefined; // The actual data for the block being dragged (for overlay)
+  activeBlockData: Block | undefined;
   currentUsername: string;
   error: string | null;
-  userProfile: UserProfile | null; // For "No statistics to display" message
+  userProfile: UserProfile | null;
 }
 
 export function StatisticsGrid({
@@ -52,6 +52,8 @@ export function StatisticsGrid({
   userProfile,
 }: StatisticsGridProps) {
 
+  // This function renders the block being dragged.
+  // Apply similar padding and font size changes to your SortableStatBlock.tsx component.
   const renderActiveBlockOverlay = () => {
     if (!activeBlockData) return null;
     const { icon, title, content, colorIndex } = activeBlockData;
@@ -74,19 +76,26 @@ export function StatisticsGrid({
       <Card className={cn(
         "overflow-hidden shadow-2xl cursor-grabbing transition-opacity backdrop-blur-md bg-white/80 border-neutral-200 text-neutral-900",
         "dark:bg-neutral-900/80 dark:border-neutral-800 dark:text-neutral-100"
+        // Consider min-height if content varies greatly and you want uniform dragging preview height
+        // e.g., style={{ minHeight: '100px' }} or a Tailwind class like `h-28`
       )}
       >
         <div className={cn("absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b", gradientClasses)} />
-        <CardHeader className="pb-2 pl-5 pr-4 pt-4">
-          <div className="flex items-center gap-3">
-            <div className={cn("p-2.5 rounded-lg shadow-md", iconContainerClasses)}>
-              {icon}
+        {/* Reduced padding in CardHeader: pb-1.5, pl-4, pt-3 */}
+        <CardHeader className="pb-1.5 pl-4 pr-3 pt-3"> {/* Adjusted padding */}
+          <div className="flex items-center gap-2.5"> {/* Slightly reduced gap */}
+            {/* Reduced padding for icon container: p-2 */}
+            <div className={cn("p-2 rounded-md shadow", iconContainerClasses)}> {/* Adjusted padding & rounding */}
+              {icon} {/* Assuming icon is already sized e.g. h-4 w-4 */}
             </div>
-            <CardTitle className="text-sm font-semibold md:text-base">{title}</CardTitle>
+            {/* Reduced font size for CardTitle: text-xs md:text-sm */}
+            <CardTitle className="text-xs font-medium md:text-sm">{title}</CardTitle> {/* Adjusted font size & weight */}
           </div>
         </CardHeader>
-        <CardContent className="pl-5 pr-4 pb-4 pt-1">
-          <div className="text-2xl md:text-3xl font-bold">{content}</div>
+        {/* Reduced padding and font size in CardContent */}
+        <CardContent className="pl-4 pr-3 pb-3 pt-0.5"> {/* Adjusted padding */}
+          {/* Reduced font size for content: text-lg md:text-xl */}
+          <div className="text-lg md:text-xl font-bold">{content}</div> {/* Adjusted font size */}
         </CardContent>
       </Card>
     );
@@ -122,7 +131,8 @@ export function StatisticsGrid({
             items={blocks.map((b) => b.id)}
             strategy={rectSortingStrategy}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+            {/* Ensure this grid layout and gap are what you desire with smaller cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 md:gap-6">
               {blocks.map((b, index) => (
                 <motion.div
                   key={b.id}
@@ -133,21 +143,28 @@ export function StatisticsGrid({
                     delay: 0.5 + index * 0.05, // Stagger animation
                   }}
                 >
+                  {/* IMPORTANT: Ensure SortableStatBlock applies similar "smaller" styling */}
+                  {/* (padding, font sizes) as defined in renderActiveBlockOverlay */}
                   <SortableStatBlock block={b} isDragging={activeBlockId === b.id} />
                 </motion.div>
               ))}
-              {/* Skeletons for initial loading of stats before blocks are populated */}
+              {/* Skeletons for initial loading, adjusted for smaller size */}
               {loadingStats && blocks.length === 0 && sessionStatus === 'authenticated' &&
-                Array(5).fill(0).map((_, i) => (
+                Array(6).fill(0).map((_, i) => ( // Show 6 skeletons for 2/3 col layout
                   <Card key={`stat-skeleton-${i}`} className="bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800">
-                    <CardHeader className="pb-2 pl-5 pr-10 pt-4">
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-lg bg-neutral-300 dark:bg-neutral-700" />
-                        <Skeleton className="h-4 w-24 bg-neutral-300 dark:bg-neutral-700" />
+                    {/* Adjusted padding in CardHeader */}
+                    <CardHeader className="pb-1.5 pl-4 pr-3 pt-3">
+                      <div className="flex items-center gap-2.5">
+                        {/* Adjusted skeleton icon size */}
+                        <Skeleton className="h-8 w-8 rounded-md bg-neutral-300 dark:bg-neutral-700" /> {/* Matches p-2 icon container with h-4 icon */}
+                        {/* Adjusted skeleton title size */}
+                        <Skeleton className="h-3.5 w-20 bg-neutral-300 dark:bg-neutral-700" />
                       </div>
                     </CardHeader>
-                    <CardContent className="pl-5 pr-10 pb-4 pt-1">
-                      <Skeleton className="h-8 w-16 bg-neutral-300 dark:bg-neutral-700" />
+                    {/* Adjusted padding in CardContent */}
+                    <CardContent className="pl-4 pr-3 pb-3 pt-0.5">
+                      {/* Adjusted skeleton content size */}
+                      <Skeleton className="h-6 w-12 bg-neutral-300 dark:bg-neutral-700" />
                     </CardContent>
                   </Card>
                 ))
@@ -159,11 +176,17 @@ export function StatisticsGrid({
           </DragOverlay>
         </DndContext>
       ) : (
-        !loadingStats && !error && !userProfile && sessionStatus === "authenticated" && (
+        !loadingStats && !error && userProfile === null && sessionStatus === "authenticated" && ( // Check userProfile for more accurate message
           <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
-            No statistics to display for this user, or user not found.
+            No statistics found for this user.
           </p>
         )
+      )}
+      {/* Show a message if there's an error and no blocks, even if not loading */}
+      {!loadingStats && error && blocks.length === 0 && (
+        <p className="text-center text-red-500 dark:text-red-400 py-8">
+          Could not load statistics. {error.includes("rate limit") ? "GitHub API rate limit likely exceeded." : ""}
+        </p>
       )}
     </>
   );

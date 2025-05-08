@@ -52,7 +52,7 @@ export function DashboardHeader({
         <ModeToggle isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />
         <Button
           variant="outline"
-          className="border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:text-neutral-300"
+          className=""
           onClick={onUsernameChange}
         >
           <ExternalLink className="h-4 w-4 mr-2" /> Change User
@@ -60,7 +60,7 @@ export function DashboardHeader({
         <Button
           onClick={onRefreshAll}
           disabled={refreshing || loadingStats || loadingPRs || sessionStatus === 'loading'}
-          className="bg-black hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black border-0 font-medium"
+          className=""
         >
           <RefreshCw
             className={`h-4 w-4 mr-2 ${refreshing || loadingStats || loadingPRs ? "animate-spin" : ""

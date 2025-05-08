@@ -94,8 +94,6 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
           className={cn(
             "grid grid-cols-[auto_1fr] gap-2 h-full overflow-hidden relative group p-2",
             "transition-all duration-200 ease-in-out",
-            "hover:shadow-md dark:hover:shadow-black/30",
-            "bg-white border border-neutral-200 hover:border-neutral-300",
             "dark:bg-neutral-800/60 dark:border-neutral-700/80 dark:hover:border-neutral-600",
             isDragging && !isOverlay &&
             "ring-2 ring-sky-500 opacity-80 shadow-lg dark:ring-sky-400",
@@ -248,7 +246,7 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
             </div>
           </div>
         </Card>
-      </div>
+      </div >
     );
   }
 );
