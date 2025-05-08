@@ -37,7 +37,7 @@ export default function SignInPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-white px-4 ">
       <Card className="w-full max-w-sm shadow-lg">
         <CardHeader>
-          <CardTitle className="text-center">Welcome Back</CardTitle>
+          <CardTitle className="text-center">Welcome!</CardTitle>
           <CardDescription className="text-center">
             Sign in with your GitHub account to continue
           </CardDescription>
