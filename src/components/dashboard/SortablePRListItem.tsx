@@ -3,7 +3,7 @@ import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PRListItem } from "./PRListItem";
-import type { VirtualizedPRItem } from "@/app/dashboard/types";
+import type { VirtualizedPRItem } from "./types";
 
 interface SortablePRListItemProps {
   item: VirtualizedPRItem;

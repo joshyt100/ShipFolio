@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Block } from "@/app/dashboard/types"; // Adjusted path if necessary
+import type { Block } from "./types"; // Adjusted path if necessary
 
 interface SortableStatBlockProps {
   block: Block;

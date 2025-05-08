@@ -1,7 +1,6 @@
 // components/dashboard/types.ts
 import type React from "react";
 
-// --- Core Data Structures for UI ---
 
 export interface Block {
   id: string;
@@ -264,7 +263,7 @@ export function transformGraphQLPRToUIPR(graphqlPR: GraphQLPullRequestNode): Pul
     case "MERGED": uiState = "merged"; break;
     default: uiState = "closed";
   }
-  const repoName = graphqlPR.repository.nameWithOwner.split('/')[1] || graphqlPR.repository.nameWithOwner;
+  const repoName = graphqlPR.repository.nameWithOwner.split('/')[1] ?? graphqlPR.repository.nameWithOwner;
   return {
     id: graphqlPR.databaseId,
     title: graphqlPR.title,

@@ -2,7 +2,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { GitPullRequest, GitMerge, X } from "lucide-react";
-import type { PRState } from "@/app/dashboard/types";
+import type { PRState } from "./types";
 
 interface PRStatusBadgeProps {
   status: PRState;

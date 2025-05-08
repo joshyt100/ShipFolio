@@ -3,6 +3,8 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Providers } from "./providers";
 import { ThemeProvider } from "~/components/theme-provider";
+import { SessionProvider } from "next-auth/react";
+// import { ThemeClientWrapper } from "~/components/theme-client/ThemeClientWrapper";
 
 export const metadata: Metadata = {
   title: "Create T3 App",
@@ -19,22 +21,24 @@ const geist = Geist({
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // To avoid hydration issues, ensure consistent class names between SSR and CSR
-  const isClient = typeof window !== "undefined";
+  // const isClient = typeof window !== "undefined";
 
   return (
-    <html lang="en" className={isClient ? geist.variable : "default-font-class"}>
+    <html lang="en" className={geist.variable} suppressHydrationWarning>
+
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Providers>{children}</Providers>
-        </ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Providers>{children}</Providers>
+          </ThemeProvider>
+        </SessionProvider>
       </body>
-    </html>
+    </html >
   );
 }
 

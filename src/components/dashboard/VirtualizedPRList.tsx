@@ -25,8 +25,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GitPullRequest } from "lucide-react";
 import { SortablePRListItem } from "./SortablePRListItem";
 import { PRListItem } from "./PRListItem"; // For DragOverlay
-import type { PullRequest, VirtualizedPRItem } from "@/app/dashboard/types";
-import { PR_LIST_STORAGE_KEY, PR_ITEM_ESTIMATED_HEIGHT } from "@/app/dashboard/types";
+import type { PullRequest, VirtualizedPRItem } from "./types";
+import { PR_LIST_STORAGE_KEY, PR_ITEM_ESTIMATED_HEIGHT } from "./types";
 
 
 interface VirtualizedPRListProps {

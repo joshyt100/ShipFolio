@@ -21,15 +21,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PRStatusBadge } from "./PRStatusBadge";
-import type { VirtualizedPRItem } from "@/app/dashboard/types";
-import { PR_ITEM_ESTIMATED_HEIGHT } from "@/app/dashboard/types";
+import type { VirtualizedPRItem } from "./types";
+import { PR_ITEM_ESTIMATED_HEIGHT } from "./types";
 
 interface PRListItemProps extends React.HTMLAttributes<HTMLDivElement> {
   item: VirtualizedPRItem;
   isDragging?: boolean;
   isOverlay?: boolean;
   style?: React.CSSProperties;
-  [key: string]: any;
+  // [key: string]: any;
 }
 
 export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(

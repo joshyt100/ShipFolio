@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { VirtualizedPRList } from "./VirtualizedPRList";
-import type { PullRequest } from "@/app/dashboard/types";
+import type { PullRequest } from "./types";
 import type { SessionContextValue } from "next-auth/react";
 
 interface PullRequestSectionProps {

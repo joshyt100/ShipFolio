@@ -6,7 +6,7 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
+  // CardDescription,
   CardContent,
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -14,8 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Calendar as CalendarIcon, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ContributionTypeStat } from "@/app/dashboard/types"; // Ensure this path is correct
-import { GITHUB_CALENDAR_LIGHT_THEME_COLORS, GITHUB_CALENDAR_DARK_THEME_COLORS } from "@/app/dashboard/types"; // Ensure this path is correct
+import type { ContributionTypeStat } from "./types"; // Ensure this path is correct
+import { GITHUB_CALENDAR_LIGHT_THEME_COLORS, GITHUB_CALENDAR_DARK_THEME_COLORS } from "./types"; // Ensure this path is correct
 
 interface ActivityTabsProps {
   currentUsername: string;
@@ -99,7 +99,7 @@ export function ActivityTabs({
             <CardContent className="px-4  sm:px-5 sm:pt-2 "> {/* Adjusted padding */}
               {loadingStats && contributionBreakdown.length === 0 ? (
                 <div className="space-y-2.5"> {/* Reduced space */}
-                  {[...Array(4)].map((_, i) => (
+                  {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="space-y-1"> {/* Reduced space */}
                       <div className="flex justify-between text-sm">
                         <Skeleton className="h-3.5 w-1/3 bg-neutral-200 dark:bg-neutral-700" />

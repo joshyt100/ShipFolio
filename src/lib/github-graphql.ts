@@ -3,13 +3,13 @@ import { type Session } from "next-auth";
 
 interface GraphQLResponse<TData> {
   data?: TData;
-  errors?: Array<{ message: string; type?: string; path?: (string | number)[];[key: string]: any }>;
+  errors?: Array<{ message: string; type?: string; path?: (string | number)[];[key: string]: unknown }>;
   message?: string; // For top-level messages from GitHub like rate limits
 }
 
 export async function fetchGitHubGraphQL<TResult>(
   query: string,
-  variables: Record<string, any> = {},
+  variables: Record<string, unknown> = {},
   session: Session | null
 ): Promise<TResult> {
   if (!session?.accessToken) {
@@ -28,20 +28,29 @@ export async function fetchGitHubGraphQL<TResult>(
       },
       body: JSON.stringify({ query, variables }),
     });
-  } catch (networkError: any) {
-    console.error("Network error during GitHub GraphQL request:", networkError);
-    throw new Error(`Network error: ${networkError.message || 'Failed to fetch from GitHub API'}`);
+  } catch (networkError) {
+    if (networkError instanceof Error) {
+      console.error("Network error during GitHub GraphQL request:", networkError);
+      throw new Error(`Network error: ${networkError.message || 'Failed to fetch from GitHub API'}`);
+    }
+    else {
+      console.error("Unknown network error during GitHub GraphQL request:", networkError);
+      throw new Error('Unknown network error: Failed to fetch from GitHub API');
+    }
   }
 
   let result: GraphQLResponse<TResult>;
   try {
-    result = await httpResponse.json();
-  } catch (jsonParseError: any) {
-    const responseText = await httpResponse.text().catch(() => "Could not read response text.");
-    console.error("Failed to parse GitHub GraphQL response as JSON. Status:", httpResponse.status, "Body:", responseText);
-    throw new Error(
-      `GraphQL API request failed with status ${httpResponse.status} ${httpResponse.statusText}. Non-JSON response received.`
-    );
+    result = await httpResponse.json() as GraphQLResponse<TResult>;
+  } catch (jsonParseError) {
+    if (jsonParseError instanceof Error) {
+      console.error("Failed to parse GitHub GraphQL response as JSON. Status:", httpResponse.status, "Body:", jsonParseError.message);
+      throw new Error(`GraphQL API request failed with status ${httpResponse.status} ${httpResponse.statusText}. Non-JSON response received. ${jsonParseError.message}`);
+    }
+    else {
+      console.error("Failed to parse GitHub GraphQL response as JSON. Status:", httpResponse.status, "Body:", jsonParseError);
+      throw new Error(`GraphQL API request failed with status ${httpResponse.status} ${httpResponse.statusText}. Non-JSON response received.`);
+    }
   }
 
   if (!httpResponse.ok) {
