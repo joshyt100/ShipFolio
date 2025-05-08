@@ -24,17 +24,21 @@ model Account {
   type                     String
   provider                 String
   providerAccountId        String
-  refresh_token            String?
-  access_token             String?
-  expires_at               Int?
-  token_type               String?
-  scope                    String?
-  id_token                 String?
-  session_state            String?
-  refresh_token_expires_in Int?
-  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token            String? // Verbatim from GitHub
+  access_token             String? // Verbatim from GitHub
+  expires_at               Int?    // Verbatim from GitHub (timestamp in seconds)
+  token_type               String? // Verbatim from GitHub (e.g., "bearer")
+  scope                    String? // Verbatim from GitHub (scopes granted)
+  id_token                 String? // Verbatim from GitHub (if OIDC)
+  session_state            String? // Verbatim from some providers
+
+  // GitHub specific field for refresh token rotation if enabled/supported by NextAuth version
+  refresh_token_expires_in Int?    // As mentioned in NextAuth docs for GitHub
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId]) // Added for better query performance
 }
 
 model Session {
@@ -43,6 +47,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Added for better query performance
 }
 
 model User {
