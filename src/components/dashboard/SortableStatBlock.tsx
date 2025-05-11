@@ -37,7 +37,7 @@ export function SortableStatBlock({ block }: SortableStatBlockProps) {
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 250ms ease, opacity 250ms ease", // Added opacity to transition
+    transition: transition ?? "transform 250ms ease, opacity 250ms ease", // Added opacity to transition
     touchAction: "none",
     opacity: isDragging ? 0.65 : 1, // Slightly more transparent for source item
     zIndex: isDragging ? 1000 : "auto",

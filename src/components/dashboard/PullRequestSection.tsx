@@ -2,7 +2,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, GitPullRequest } from "lucide-react";
 import { VirtualizedPRList } from "./VirtualizedPRList";
 import type { PullRequest } from "./types";
 import type { SessionContextValue } from "next-auth/react";
@@ -31,20 +31,31 @@ export function PullRequestSection({
         <h2 className="text-xl font-semibold text-black dark:text-white">
           Featured Pull Requests
         </h2>
+        {/* {currentUsername && ( */}
+        {/*   <Button */}
+        {/*     variant="ghost" */}
+        {/*     size="sm" */}
+        {/*     className="font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100" */}
+        {/*     onClick={() => */}
+        {/*       window.open( */}
+        {/*         `https://github.com/pulls?q=is%3Apr+author%3A${currentUsername}`, */}
+        {/*         "_blank" */}
+        {/*       ) */}
+        {/*     } */}
+        {/*   > */}
+        {/*     View All on GitHub <ExternalLink className="ml-2 h-3.5 w-3.5" /> */}
+        {/*   </Button> */}
+        {/* )} */}
         {currentUsername && (
           <Button
-            variant="ghost"
+            variant="default"
             size="sm"
-            className="font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
-            onClick={() =>
-              window.open(
-                `https://github.com/pulls?q=is%3Apr+author%3A${currentUsername}`,
-                "_blank"
-              )
-            }
-          >
-            View All on GitHub <ExternalLink className="ml-2 h-3.5 w-3.5" />
+            className="cursor-pointer"
+
+          > Edit Featured
+            <GitPullRequest />
           </Button>
+
         )}
       </div>
       <VirtualizedPRList
@@ -52,6 +63,6 @@ export function PullRequestSection({
         isLoading={loadingPRs && sessionStatus === 'authenticated'} // Pass session status for accurate loading
         usernameForEmptyMessage={currentUsername}
       />
-    </motion.div>
+    </motion.div >
   );
 }

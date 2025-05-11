@@ -143,21 +143,6 @@ export interface GraphQLUserPullRequestsData {
 
 
 
-export interface ContributionActivityStats {
-  longestStreak?: {
-    days: number;
-    startDate: string; // ISO format "YYYY-MM-DD"
-    endDate: string;   // ISO format "YYYY-MM-DD"
-  };
-  busiestDayOfWeek?: {
-    day: string;       // e.g., "Monday"
-    averageContributions: number;
-  };
-  mostCommitsSingleDay?: {
-    date: string;      // e.g., "2024-10-02"
-    count: number;
-  };
-}
 
 // --- Constants ---
 export const PR_LIST_STORAGE_KEY = "dashboardVPRListOrder_v3_graphql";

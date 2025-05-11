@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { Providers } from "./providers";
 import { ThemeProvider } from "~/components/theme-provider";
 import { SessionProvider } from "next-auth/react";
+import { TRPCReactProvider } from "~/trpc/react";
 // import { ThemeClientWrapper } from "~/components/theme-client/ThemeClientWrapper";
 
 export const metadata: Metadata = {
@@ -27,17 +28,19 @@ export default function RootLayout({
     <html lang="en" className={geist.variable} suppressHydrationWarning>
 
       <body>
-        <SessionProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <Providers>{children}</Providers>
-          </ThemeProvider>
-        </SessionProvider>
-      </body>
+        <TRPCReactProvider>
+          <SessionProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <Providers>{children}</Providers>
+            </ThemeProvider>
+          </SessionProvider>
+        </TRPCReactProvider>
+      </body >
     </html >
   );
 }

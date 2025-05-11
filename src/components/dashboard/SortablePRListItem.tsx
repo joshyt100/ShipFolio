@@ -21,7 +21,7 @@ export function SortablePRListItem({ item }: SortablePRListItemProps) {
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 250ms ease-in-out",
+    transition: transition ?? "transform 250ms ease-in-out",
   };
 
   return (

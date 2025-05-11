@@ -19,6 +19,8 @@ export interface UserProfile {
   bio: string | null;
   login: string;
   createdAt: string; // ISO 8601 date string
+  // company: string | null;
+
 }
 
 export interface PullRequest {
@@ -156,6 +158,21 @@ export interface GraphQLUserPullRequestsData {
   };
 }
 
+export interface ContributionActivityStats {
+  longestStreak?: {
+    days: number;
+    startDate: string; // ISO format "YYYY-MM-DD"
+    endDate: string;   // ISO format "YYYY-MM-DD"
+  } | null;
+  busiestDayOfWeek?: {
+    day: string;       // e.g., "Monday"
+    averageContributions: number;
+  } | null;
+  mostCommitsSingleDay?: {
+    date: string;      // e.g., "2024-10-02"
+    count: number;
+  } | null;
+}
 // --- Constants ---
 export const PR_LIST_STORAGE_KEY = "dashboardVPRListOrder_v3_graphql";
 export const PR_ITEM_ESTIMATED_HEIGHT = 128;

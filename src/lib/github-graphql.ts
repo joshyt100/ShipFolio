@@ -20,6 +20,7 @@ export async function fetchGitHubGraphQL<TResult>(
 
   let httpResponse: Response;
   try {
+
     httpResponse = await fetch("https://api.github.com/graphql", {
       method: "POST",
       headers: {
@@ -28,6 +29,7 @@ export async function fetchGitHubGraphQL<TResult>(
       },
       body: JSON.stringify({ query, variables }),
     });
+    // console.log("GraphQL Request:", query, variables);
   } catch (networkError) {
     if (networkError instanceof Error) {
       console.error("Network error during GitHub GraphQL request:", networkError);
@@ -42,6 +44,7 @@ export async function fetchGitHubGraphQL<TResult>(
   let result: GraphQLResponse<TResult>;
   try {
     result = await httpResponse.json() as GraphQLResponse<TResult>;
+    console.log("GraphQL Response:", result);
   } catch (jsonParseError) {
     if (jsonParseError instanceof Error) {
       console.error("Failed to parse GitHub GraphQL response as JSON. Status:", httpResponse.status, "Body:", jsonParseError.message);
