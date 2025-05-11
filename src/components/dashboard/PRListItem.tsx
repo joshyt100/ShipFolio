@@ -21,15 +21,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PRStatusBadge } from "./PRStatusBadge";
-import type { VirtualizedPRItem } from "@/app/dashboard/types";
-import { PR_ITEM_ESTIMATED_HEIGHT } from "@/app/dashboard/types";
+import type { VirtualizedPRItem } from "./types";
+import { PR_ITEM_ESTIMATED_HEIGHT } from "./types";
 
 interface PRListItemProps extends React.HTMLAttributes<HTMLDivElement> {
   item: VirtualizedPRItem;
   isDragging?: boolean;
   isOverlay?: boolean;
   style?: React.CSSProperties;
-  [key: string]: any;
 }
 
 export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
@@ -48,12 +47,6 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
     const isOpen = item.state === "open";
     const isClosedUnmerged = item.state === "closed" && !isMerged;
 
-    // For debugging - you can add this to check what data is being received
-    // console.log(`PR #${item.number} data:`, { 
-    //   comments: item.commentsCount,
-    //   approvals: item.approvedReviewsCount 
-    // });
-
     const formattedDate = useMemo(() => {
       if (!item.createdAt) return "Date N/A";
       const date = new Date(item.createdAt);
@@ -71,37 +64,29 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
       });
     }, [item.createdAt]);
 
-    const grabHandleProps = !isOverlay ? props : {};
-
     const StateIcon = useMemo(() => {
       if (isMerged) return GitMerge;
       if (isOpen) return GitPullRequest;
       return XCircle;
     }, [isMerged, isOpen]);
 
-    // Ensure we have valid numbers for comments and approvals
-    const commentsCount = typeof item.commentsCount === 'number' ? item.commentsCount : 0;
-    const approvedReviewsCount = typeof item.approvedReviewsCount === 'number' ? item.approvedReviewsCount : 0;
+    const commentsCount = typeof item.commentsCount === "number" ? item.commentsCount : 0;
+    const approvedReviewsCount = typeof item.approvedReviewsCount === "number" ? item.approvedReviewsCount : 0;
 
     return (
       <div
         ref={ref}
         style={itemOuterStyle}
         {...(isOverlay ? {} : props)}
-        className={cn("w-full outline-none focus:outline-none", isOverlay && "z-50")}
+        className={cn("w-full", isOverlay && "z-50")}
       >
         <Card
           className={cn(
-            "grid grid-cols-[auto_1fr] gap-2 h-full overflow-hidden relative group p-2",
-            "transition-all duration-200 ease-in-out",
-            "dark:bg-neutral-800/60 dark:border-neutral-700/80 dark:hover:border-neutral-600",
-            isDragging && !isOverlay &&
-            "ring-2 ring-sky-500 opacity-80 shadow-lg dark:ring-sky-400",
-            isOverlay &&
-            "shadow-xl scale-102 !opacity-100 ring-2 ring-sky-600 dark:ring-sky-500"
+            "grid grid-cols-[auto_1fr] gap-2 h-full relative p-2",
+            isDragging && !isOverlay && "ring-2 ring-sky-500 opacity-80",
+            isOverlay && "ring-2 ring-sky-600 scale-105"
           )}
         >
-          {/* Left border indicator */}
           <div
             className={cn(
               "absolute left-0 top-0 bottom-0 w-1",
@@ -111,31 +96,24 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
             )}
           />
 
-          {/* Grip Handle */}
           <div
-            {...grabHandleProps}
             className={cn(
-              "flex items-start px-2 pt-1 touch-none",
-              "bg-neutral-50 group-hover:bg-neutral-100 dark:bg-neutral-800 dark:group-hover:bg-neutral-700/60",
-              isOverlay ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
+              "flex items-start px-2 pt-1",
+              isOverlay ? "cursor-grabbing" : "cursor-grab"
             )}
           >
-            <GripVertical className="h-4 w-4 text-neutral-400 group-hover:text-neutral-500 dark:text-neutral-500 dark:group-hover:text-neutral-400" />
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
 
-          {/* Main Content */}
           <div className="flex flex-col gap-2 min-w-0">
-            {/* Title & Status */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <a
                   href={item.url || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group/link"
-                  title={item.title || "Untitled PR"}
                 >
-                  <h3 className="font-medium text-[15px] leading-tight text-neutral-800 group-hover/link:text-sky-600 dark:text-neutral-100 dark:group-hover/link:text-sky-400 line-clamp-2">
+                  <h3 className="text-sm font-medium text-foreground line-clamp-2">
                     {item.title || "No Title Provided"}
                   </h3>
                 </a>
@@ -143,15 +121,14 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
               <PRStatusBadge status={item.state} />
             </div>
 
-            {/* Repo info */}
             {(item.repository?.name || item.number != null) && (
-              <div className="flex items-center text-xs text-neutral-500 dark:text-neutral-400">
+              <div className="flex items-center text-xs text-muted-foreground">
                 <StateIcon
                   className={cn(
                     "h-3.5 w-3.5 mr-1.5",
-                    isMerged && "text-purple-500 dark:text-purple-400",
-                    isOpen && "text-green-500 dark:text-green-400",
-                    isClosedUnmerged && "text-red-500 dark:text-red-400"
+                    isMerged && "text-purple-500",
+                    isOpen && "text-green-500",
+                    isClosedUnmerged && "text-red-500"
                   )}
                 />
                 {item.repository?.name && (
@@ -159,45 +136,39 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
                     href={item.repository.url || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:underline truncate font-medium"
-                    title={item.repository.name}
+                    className="truncate"
                   >
                     {item.repository.name}
                   </a>
                 )}
                 {item.number != null && (
-                  <span
-                    className={cn(
-                      "font-mono text-neutral-400 dark:text-neutral-500",
-                      item.repository?.name ? "ml-1.5" : ""
-                    )}
-                  >
+                  <span className={cn("font-mono", item.repository?.name && "ml-1.5")}>
                     #{item.number}
                   </span>
                 )}
               </div>
             )}
 
-            {/* Metadata row */}
-            <div className="flex items-center justify-between border-t pt-2 border-neutral-100 dark:border-neutral-700/50">
-              {/* Author */}
+            <div className="flex items-center justify-between border-t pt-2">
               {item.user?.login && (
                 <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6 border border-neutral-200 dark:border-neutral-600 ring-1 ring-white dark:ring-neutral-800">
-                    <AvatarImage src={item.user.avatar_url || "/placeholder.svg"} alt={item.user.login} />
-                    <AvatarFallback className="text-[10px] font-medium bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage
+                      src={item.user.avatar_url || "/placeholder.svg"}
+                      alt={item.user.login}
+                    />
+                    <AvatarFallback className="text-xs">
                       {getInitials(item.user.login)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200">
+                  <span className="text-sm font-medium text-foreground">
                     {item.user.login}
                   </span>
                 </div>
               )}
 
-              {/* Date and Stats */}
-              <div className="flex items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
-                <Clock className="h-3 w-3 mr-1" />
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
                 <span>{formattedDate}</span>
 
                 <TooltipProvider>
@@ -232,7 +203,6 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1 rounded-md transition-colors text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-neutral-200"
                           aria-label="Open PR on GitHub"
                         >
                           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -246,9 +216,10 @@ export const PRListItem = React.forwardRef<HTMLDivElement, PRListItemProps>(
             </div>
           </div>
         </Card>
-      </div >
+      </div>
     );
   }
 );
 
 PRListItem.displayName = "PRListItem";
+

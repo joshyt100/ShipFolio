@@ -6,18 +6,18 @@ import { HowItWorks } from "./HowItWorks"
 import { FAQ } from "./FAQ"
 import { CTA } from "./CTA"
 import { Footer } from "./Footer"
+import { PRShowcase } from "../dashboard/PRShowcase"
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-50 px-4">
+    <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1">
         <Hero />
-        <DashboardPreview />
         <Features />
-        <HowItWorks />
-        <FAQ />
-        <CTA />
+        <PRShowcase />
+        {/* <FAQ /> */}
+        {/* <CTA /> */}
       </main>
       <Footer />
     </div>

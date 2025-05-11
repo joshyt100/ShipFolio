@@ -1,8 +1,9 @@
+// src/app/dashboard/page.tsx
 "use client";
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion"; // Ensure motion is imported
+import { motion } from "framer-motion";
 import {
   PointerSensor,
   KeyboardSensor,
@@ -14,17 +15,13 @@ import {
 import { arrayMove } from "@dnd-kit/sortable";
 import {
   Users, Star, GitFork, Archive, Code, AlertCircle,
-  Calendar as CalendarIcon, GitCommit, Eye, GitPullRequest,
+  Calendar as CalendarIcon, GitCommit, Eye, GitPullRequest, type LucideIcon,
 } from "lucide-react";
 
-import { fetchGitHubGraphQL } from "@/lib/github-graphql";
 import {
   type Block, type UserProfile, type PullRequest, type LanguageStat,
-  type ContributionTypeStat, type GraphQLUserStatsData, type GraphQLUserPullRequestsData,
-  type ContributionActivityStats, type GraphQLContributionCalendar, type GraphQLContributionDay,
-  USER_STATS_QUERY, USER_PULL_REQUESTS_QUERY, MAX_TOP_LANGUAGES_DISPLAY,
-  transformGraphQLPRToUIPR,
-} from "../../components/dashboard/types"; // Adjusted path
+  type ContributionTypeStat, type ContributionActivityStats,
+} from "@/components/dashboard/types";
 
 import { DashboardLoadingScreen } from "@/components/dashboard/DashboardLoadingScreen";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -35,7 +32,8 @@ import { ActivityTabs } from "@/components/dashboard/ActivityTabs";
 import { StatisticsGrid } from "@/components/dashboard/StatisticsGrid";
 import { AuthPrompt } from "@/components/dashboard/AuthPrompt";
 
-// Skeleton and other functions remain the same...
+import { api } from "~/trpc/react";
+
 const UserProfileSkeleton = () => (
   <div
     className="animate-pulse bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4 md:p-6 mb-6 shadow-sm"
@@ -56,129 +54,110 @@ const UserProfileSkeleton = () => (
   </div>
 );
 
-function calculateActivityHighlights(
-  calendar: GraphQLContributionCalendar | null | undefined
-): ContributionActivityStats {
-  const stats: ContributionActivityStats = {
-    busiestDayOfWeek: null,
-    mostCommitsSingleDay: null,
-    longestStreak: null,
-  };
-
-  if (!calendar?.weeks || calendar.weeks.length === 0) {
-    return stats;
-  }
-
-  const allCalendarDaysChronological: GraphQLContributionDay[] = calendar.weeks
-    .flatMap(week => week.contributionDays)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  if (allCalendarDaysChronological.length === 0) {
-    return stats;
-  }
-
-  let peakDayActivity: GraphQLContributionDay | null = null;
-  for (const day of allCalendarDaysChronological) {
-    if (day.contributionCount > 0) {
-      if (!peakDayActivity || day.contributionCount > peakDayActivity.contributionCount) {
-        peakDayActivity = day;
-      }
-    }
-  }
-  if (peakDayActivity) {
-    stats.mostCommitsSingleDay = {
-      date: new Date(peakDayActivity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      count: peakDayActivity.contributionCount,
-    };
-  }
-
-  let currentStreakDays = 0;
-  let longestStreakDays = 0;
-  for (const day of allCalendarDaysChronological) {
-    if (day.contributionCount > 0) {
-      currentStreakDays++;
-    } else {
-      if (currentStreakDays > longestStreakDays) {
-        longestStreakDays = currentStreakDays;
-      }
-      currentStreakDays = 0;
-    }
-  }
-  if (currentStreakDays > longestStreakDays) { // Final check after loop
-    longestStreakDays = currentStreakDays;
-  }
-  if (longestStreakDays > 0) {
-    stats.longestStreak = { days: longestStreakDays };
-  }
-
-  const dayTotals: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-  allCalendarDaysChronological.forEach(day => {
-    if (day.contributionCount > 0) {
-      dayTotals[day.weekday] = (dayTotals[day.weekday] || 0) + day.contributionCount;
-    }
-  });
-
-  let busiestWeekday = -1;
-  let maxContributionsOnWeekday = -1;
-  for (const weekdayStr in dayTotals) {
-    const weekday = parseInt(weekdayStr);
-    if (dayTotals[weekday] > maxContributionsOnWeekday) {
-      maxContributionsOnWeekday = dayTotals[weekday];
-      busiestWeekday = weekday;
-    }
-  }
-  if (busiestWeekday !== -1 && maxContributionsOnWeekday > 0) {
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    stats.busiestDayOfWeek = { day: dayNames[busiestWeekday] };
-  }
-
-  return stats;
-}
-
-
-// Define animation variants for page sections
 const sectionVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4, // Duration for each individual section animation
-    },
-  },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
 };
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.2, // Time delay between each child section animating in
-      // delayChildren: 0.1, // Optional: delay before the first child starts
-    },
-  },
+  visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+};
+
+const iconMap: Record<string, LucideIcon> = {
+  GitCommit, GitPullRequest, Eye, AlertCircle, Users, Star, GitFork, Archive, Code, CalendarIcon,
 };
 
 export default function DashboardPage() {
   const { data: session, status: sessionStatus } = useSession();
   const [currentUsername, _setUsernameInternal] = useState("ThePrimeagen");
-  const [isDarkTheme, setIsDarkTheme] = useState(true);
-
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [blocks, setBlocks] = useState<Block[]>([]);
-  const [featuredPRs, setFeaturedPRs] = useState<PullRequest[]>([]);
-  const [topLanguages, setTopLanguages] = useState<LanguageStat[]>([]);
-  const [contributionBreakdown, setContributionBreakdown] = useState<ContributionTypeStat[]>([]);
-  const [activityStats, setActivityStats] = useState<ContributionActivityStats | null>(null);
-
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [loadingPRs, setLoadingPRs] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
+  const [isDarkTheme, setIsDarkTheme] = useState(true); // Assuming default, will be updated by useEffect
   const [activeStatBlockId, setActiveStatBlockId] = useState<string | null>(null);
 
-  // ... (setUsername, handleUsernameChange, theme effects, refreshAll, fetchPRs, loadUserStatsAndRelatedData effects remain the same) ...
+  // This state tracks if the very first load for a username's profile has completed.
+  // It helps in deciding if a full animation is needed vs. a quick one.
+  const [isInitialProfileDataLoad, setIsInitialProfileDataLoad] = useState(true);
+  const dndStatSensors = useSensors(
+    useSensor(PointerSensor, {
+      // Require the mouse to move by 10 pixels before activating
+      // Allows for clicking on elements within items without triggering a drag
+      activationConstraint: {
+        distance: 8, // Or your preferred distance
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      // You might configure keyboard controls here if needed
+      // coordinateGetter: sortableKeyboardCoordinates, // If using sortable lists with keyboard
+    })
+  );
+
+
+  const trpcUtils = api.useUtils();
+
+  const userProfileAndStatsQuery = api.github.getUserProfileAndStats.useQuery(
+    { username: currentUsername },
+    {
+      enabled: !!currentUsername && sessionStatus === "authenticated",
+      onSuccess: (data) => {
+        // If data is successfully fetched (even from cache after an initial fetch),
+        // and it contains a user profile, we consider the "initial load" for this profile display done.
+        if (data?.userProfile) {
+          setIsInitialProfileDataLoad(false);
+        }
+      },
+      onError: () => {
+        // If there's an error, we might still want to reset initial load status
+        // if user changes, or handle it based on specific error.
+        // For now, error doesn't change this flag.
+      }
+    }
+  );
+
+  const pullRequestsQuery = api.github.getUserPullRequests.useQuery(
+    { username: currentUsername },
+    { enabled: !!currentUsername && sessionStatus === "authenticated" }
+  );
+
+  // Direct access to query results
+  const statsQueryResult = userProfileAndStatsQuery.data;
+  const prQueryResult = pullRequestsQuery.data;
+
+  // Query status flags
+  const isLoadingStats = userProfileAndStatsQuery.isLoading; // True only on first fetch (no cache)
+  const isFetchingStats = userProfileAndStatsQuery.isFetching; // True during any fetch
+  const isLoadingPRs = pullRequestsQuery.isLoading;
+  const isFetchingPRs = pullRequestsQuery.isFetching;
+
+  // Derived data
+  const userProfileData = statsQueryResult?.userProfile ?? null;
+  const basicStatsData = statsQueryResult?.basicStats ?? null;
+  const activityStatsData = statsQueryResult?.activityStats ?? null;
+  const contributionBreakdownRaw = statsQueryResult?.contributionBreakdown ?? [];
+  const topLanguagesData = statsQueryResult?.topLanguages ?? [];
+  const featuredPRsData = prQueryResult ?? [];
+
+  const contributionBreakdown: ContributionTypeStat[] = useMemo(() => {
+    return contributionBreakdownRaw.map(item => ({
+      ...item,
+      icon: item.iconName && iconMap[item.iconName] ? React.createElement(iconMap[item.iconName], { className: "h-4 w-4" }) : <AlertCircle className="h-4 w-4" />,
+    }));
+  }, [contributionBreakdownRaw]);
+
+  const blocks: Block[] = useMemo(() => {
+    if (!userProfileData || !basicStatsData) return [];
+    return [
+      { id: "followers", title: "Followers", content: (basicStatsData.followers || 0).toLocaleString(), icon: <Users className="h-4 w-4" />, colorIndex: 0 },
+      { id: "stars", title: "Total Stars", content: (basicStatsData.totalStars || 0).toLocaleString(), icon: <Star className="h-4 w-4" />, colorIndex: 1 },
+      { id: "forks", title: "Total Forks", content: (basicStatsData.totalForks || 0).toLocaleString(), icon: <GitFork className="h-4 w-4" />, colorIndex: 2 },
+      { id: "public_repos", title: "Public Repos", content: (basicStatsData.publicRepos || 0).toLocaleString(), icon: <Archive className="h-4 w-4" />, colorIndex: 0 },
+      { id: "public_gists", title: "Public Gists", content: (basicStatsData.publicGists || 0).toLocaleString(), icon: <Code className="h-4 w-4" />, colorIndex: 1 },
+      { id: "years_on_github", title: "Years on GitHub", content: basicStatsData.yearsOnGitHub, icon: <CalendarIcon className="h-4 w-4" />, colorIndex: 2 },
+    ];
+  }, [userProfileData, basicStatsData]);
+
+  const [dndBlocks, setDndBlocks] = useState<Block[]>(blocks);
+  useEffect(() => { setDndBlocks(blocks); }, [blocks]);
+
   useEffect(() => {
     const storedTheme = localStorage.getItem("github-dashboard-theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -193,339 +172,164 @@ export default function DashboardPage() {
   const toggleTheme = useCallback(() => setIsDarkTheme((prev) => !prev), []);
 
   const setUsername = (newUsername: string) => {
-    if (newUsername && newUsername.trim() && newUsername.trim() !== currentUsername) {
-      setError(null); // Clear previous errors
-      setUserProfile(null); // Clear old profile data immediately
-      setFeaturedPRs([]); // Clear old PRs
-      setBlocks([]);
-      setTopLanguages([]);
-      setContributionBreakdown([]);
-      setActivityStats(null);
-      _setUsernameInternal(newUsername.trim());
-      // Data fetching useEffects will trigger due to currentUsername change
+    const trimmedUsername = newUsername.trim();
+    if (trimmedUsername && trimmedUsername !== currentUsername) {
+      _setUsernameInternal(trimmedUsername);
+      setIsInitialProfileDataLoad(true); // Reset for new user, so full animation plays
+      // Queries will refetch due to currentUsername change.
     }
   };
 
   const handleUsernameChange = () => {
     const nu = prompt("Enter GitHub username:", currentUsername);
-    if (nu && nu.trim()) {
-      setUsername(nu.trim());
-    }
+    if (nu && nu.trim()) setUsername(nu.trim());
   };
 
-
-  useEffect(() => {
-    if (refreshing && !loadingStats && !loadingPRs) {
-      setRefreshing(false);
-    }
-  }, [refreshing, loadingStats, loadingPRs]);
-
   const refreshAll = useCallback(() => {
-    setError(null);
-    // Optionally reset states here if you want instant clearing on refresh
-    // setUserProfile(null);
-    // setFeaturedPRs([]);
-    setRefreshing(true); // This will trigger data fetching useEffects
-  }, []);
-
-  useEffect(() => {
-    async function fetchPRs() {
-      if (!currentUsername || sessionStatus !== "authenticated" || !session) {
-        setFeaturedPRs([]);
-        setLoadingPRs(false);
-        return;
-      }
-      setLoadingPRs(true);
-      try {
-        const prSearchString = `author:${currentUsername} type:pr sort:updated-desc`;
-        const gqlResponse = await fetchGitHubGraphQL<GraphQLUserPullRequestsData>(
-          USER_PULL_REQUESTS_QUERY,
-          { searchQueryString: prSearchString, first: 15 },
-          session
-        );
-        if (gqlResponse?.search?.edges) {
-          const formattedPRs = gqlResponse.search.edges
-            .map(edge => edge?.node ? transformGraphQLPRToUIPR(edge.node) : null)
-            .filter((pr): pr is PullRequest => pr !== null);
-          setFeaturedPRs(formattedPRs);
-        } else {
-          setFeaturedPRs([]);
-          if (gqlResponse && (!gqlResponse.search || typeof gqlResponse.search.edges === 'undefined')) {
-            console.warn("GraphQL PR response structure unexpected or empty:", gqlResponse);
-            if (!error && !refreshing) setError("Could not retrieve pull requests for this user.");
-          }
-        }
-      } catch (e: any) {
-        console.error("Featured PRs fetch error (GraphQL):", e);
-        if (!error && !refreshing) setError(e.message || "Failed to fetch pull requests.");
-        setFeaturedPRs([]);
-      } finally {
-        setLoadingPRs(false);
-      }
+    if (currentUsername && sessionStatus === "authenticated") {
+      setIsInitialProfileDataLoad(true); // Treat refresh as an initial load for animation
+      trpcUtils.github.getUserProfileAndStats.invalidate({ username: currentUsername });
+      trpcUtils.github.getUserPullRequests.invalidate({ username: currentUsername });
     }
+  }, [currentUsername, sessionStatus, trpcUtils.github]);
 
-    if (currentUsername && (sessionStatus === 'authenticated' || refreshing)) { // Added refreshing condition
-      fetchPRs();
-    } else if (sessionStatus === 'loading') {
-      setLoadingPRs(true);
-    } else {
-      setLoadingPRs(false);
-      setFeaturedPRs([]);
-      if (sessionStatus === "unauthenticated" && currentUsername && !error && !refreshing) {
-        // setError("Please sign in to view pull requests."); // This can be handled by AuthPrompt or section-specific messages
-      }
-    }
-  }, [currentUsername, refreshing, session, sessionStatus, error]);
-
-  useEffect(() => {
-    async function loadUserStatsAndRelatedData() {
-      if (!currentUsername || sessionStatus !== "authenticated" || !session) {
-        setUserProfile(null); setBlocks([]); setTopLanguages([]);
-        setContributionBreakdown([]); setActivityStats(null);
-        setLoadingStats(false);
-        return;
-      }
-      setLoadingStats(true);
-      // Reset states if not refreshing, to clear old data when username changes
-      if (!refreshing) {
-        setUserProfile(null); setBlocks([]); setTopLanguages([]);
-        setContributionBreakdown([]); setActivityStats(null);
-      }
-
-      try {
-        const gqlResponse = await fetchGitHubGraphQL<GraphQLUserStatsData>(
-          USER_STATS_QUERY, { username: currentUsername }, session
-        );
-        if (gqlResponse?.user) {
-          const profileData = gqlResponse.user;
-          setUserProfile({
-            name: profileData.name, login: profileData.login, bio: profileData.bio,
-            avatar_url: profileData.avatarUrl, followers: profileData.followers.totalCount,
-            public_gists: profileData.gists.totalCount, public_repos: profileData.repositories.totalCount,
-            createdAt: profileData.createdAt,
-          });
-
-          const totalStars = profileData.repositories.nodes?.reduce((sum, repo) => sum + (repo.stargazerCount || 0), 0) || 0;
-          const totalForks = profileData.repositories.nodes?.reduce((sum, repo) => sum + (repo.forkCount || 0), 0) || 0;
-          let yearsOnGitHubText = "N/A";
-          if (profileData.createdAt) {
-            const memberForMs = new Date().getTime() - new Date(profileData.createdAt).getTime();
-            let years = Math.floor(memberForMs / (1000 * 60 * 60 * 24 * 365.25));
-            if (years < 0) years = 0;
-            if (years < 1 && memberForMs > 0) yearsOnGitHubText = "< 1 year";
-            else if (years === 0 && memberForMs <= 0) yearsOnGitHubText = "New Member";
-            else yearsOnGitHubText = `${years} year${years !== 1 ? "s" : ""}`;
-          }
-
-          setBlocks([
-            { id: "followers", title: "Followers", content: (profileData.followers.totalCount || 0).toLocaleString(), icon: <Users className="h-4 w-4" />, colorIndex: 0 },
-            { id: "stars", title: "Total Stars", content: totalStars.toLocaleString(), icon: <Star className="h-4 w-4" />, colorIndex: 1 },
-            { id: "forks", title: "Total Forks", content: totalForks.toLocaleString(), icon: <GitFork className="h-4 w-4" />, colorIndex: 2 },
-            { id: "public_repos", title: "Public Repos", content: (profileData.repositories.totalCount || 0).toLocaleString(), icon: <Archive className="h-4 w-4" />, colorIndex: 0 },
-            { id: "public_gists", title: "Public Gists", content: (profileData.gists.totalCount || 0).toLocaleString(), icon: <Code className="h-4 w-4" />, colorIndex: 1 },
-            { id: "years_on_github", title: "Years on GitHub", content: yearsOnGitHubText, icon: <CalendarIcon className="h-4 w-4" />, colorIndex: 2 },
-          ]);
-
-          const languageMap = new Map<string, { size: number; color: string | null }>();
-          profileData.repositories.nodes?.forEach(repo => {
-            repo.languages?.edges?.forEach(langEdge => {
-              if (langEdge.node.name && langEdge.size > 0) {
-                const existing = languageMap.get(langEdge.node.name);
-                languageMap.set(langEdge.node.name, {
-                  size: (existing?.size || 0) + langEdge.size,
-                  color: existing?.color || langEdge.node.color,
-                });
-              }
-            });
-          });
-          const totalLanguageSize = Array.from(languageMap.values()).reduce((sum, lang) => sum + lang.size, 0);
-          const sortedLanguages: LanguageStat[] = Array.from(languageMap.entries())
-            .map(([name, data]) => ({ name, size: data.size, color: data.color, percentage: totalLanguageSize > 0 ? parseFloat(((data.size / totalLanguageSize) * 100).toFixed(1)) : 0 }))
-            .sort((a, b) => b.size - a.size).slice(0, MAX_TOP_LANGUAGES_DISPLAY);
-          setTopLanguages(sortedLanguages);
-
-          if (profileData.contributionsCollection) {
-            const contribs = profileData.contributionsCollection;
-            const rawBreakdown = [
-              { type: "commits" as const, label: "Commits", count: contribs.totalCommitContributions, icon: <GitCommit className="h-4 w-4" />, colorClass: "bg-sky-500" },
-              { type: "pullRequests" as const, label: "Pull Requests", count: contribs.totalPullRequestContributions, icon: <GitPullRequest className="h-4 w-4" />, colorClass: "bg-purple-500" },
-              { type: "reviews" as const, label: "Code Reviews", count: contribs.totalPullRequestReviewContributions, icon: <Eye className="h-4 w-4" />, colorClass: "bg-teal-500" },
-              { type: "issues" as const, label: "Issues Opened", count: contribs.totalIssueContributions, icon: <AlertCircle className="h-4 w-4" />, colorClass: "bg-orange-500" },
-            ];
-            const totalBreakdownContributions = rawBreakdown.reduce((sum, item) => sum + item.count, 0);
-            const formattedBreakdown: ContributionTypeStat[] = rawBreakdown.map(item => ({ ...item, percentage: totalBreakdownContributions > 0 ? parseFloat(((item.count / totalBreakdownContributions) * 100).toFixed(1)) : 0, })).sort((a, b) => b.count - a.count);
-            setContributionBreakdown(formattedBreakdown);
-            setActivityStats(calculateActivityHighlights(contribs.contributionCalendar));
-          } else { setContributionBreakdown([]); setActivityStats(null); }
-        } else {
-          setUserProfile(null); setBlocks([]); setTopLanguages([]);
-          setContributionBreakdown([]); setActivityStats(null);
-          if (!error && !refreshing) setError(`User "${currentUsername}" not found or data is inaccessible.`);
-        }
-      } catch (e: any) {
-        console.error("User stats/related data fetch error (GraphQL):", e);
-        if (!error && !refreshing) setError(e.message || "Failed to load user profile.");
-        setUserProfile(null); setBlocks([]); setTopLanguages([]);
-        setContributionBreakdown([]); setActivityStats(null);
-      } finally { setLoadingStats(false); }
-    }
-
-    if (currentUsername && (sessionStatus === 'authenticated' || refreshing)) { // Added refreshing condition
-      loadUserStatsAndRelatedData();
-    } else if (sessionStatus === 'loading') {
-      setLoadingStats(true);
-    } else {
-      setLoadingStats(false);
-      setUserProfile(null); setBlocks([]); setTopLanguages([]);
-      setContributionBreakdown([]); setActivityStats(null);
-      if (sessionStatus === "unauthenticated" && currentUsername && !error && !refreshing) {
-        // setError("Please sign in to view user statistics."); // Handled by AuthPrompt or section messages
-      }
-    }
-  }, [currentUsername, refreshing, session, sessionStatus, error]);
-
-
-  const dndStatSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor)
-  );
-
-  const handleDragStartSB = useCallback((event: DragStartEvent) =>
-    setActiveStatBlockId(event.active.id as string), []);
-
+  const handleDragStartSB = useCallback((event: DragStartEvent) => setActiveStatBlockId(event.active.id as string), []);
   const handleDragEndSB = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveStatBlockId(null);
     if (over && active.id !== over.id) {
-      setBlocks((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return (oldIndex !== -1 && newIndex !== -1) ? arrayMove(items, oldIndex, newIndex) : items;
+      setDndBlocks((items) => {
+        const oldIdx = items.findIndex(item => item.id === active.id);
+        const newIdx = items.findIndex(item => item.id === over.id);
+        return (oldIdx !== -1 && newIdx !== -1) ? arrayMove(items, oldIdx, newIdx) : items;
       });
     }
   }, []);
-
   const handleDragCancelSB = useCallback(() => setActiveStatBlockId(null), []);
+  const activeSBData = useMemo(() => dndBlocks.find(b => b.id === activeStatBlockId), [activeStatBlockId, dndBlocks]);
 
-  const activeSBData = useMemo(() =>
-    blocks.find((b) => b.id === activeStatBlockId), [activeStatBlockId, blocks]);
+  // Overall loading for the entire page (skeletons or main loading screen)
+  const isOverallInitialPageLoad = isLoadingStats || isLoadingPRs;
 
-  if (sessionStatus === 'loading' ||
-    ((loadingStats || loadingPRs) && !refreshing && !error &&
-      !userProfile && featuredPRs.length === 0 && !currentUsername)) {
+  // Show main loading screen only on the very first hard load or session loading
+  if (sessionStatus === 'loading' || (isOverallInitialPageLoad && !statsQueryResult && !prQueryResult && !currentUsername)) {
     return <DashboardLoadingScreen />;
   }
 
+  // Skeleton conditions for individual sections
+  const showProfileSkeleton = isLoadingStats || (isFetchingStats && !statsQueryResult);
+  const showPRSkeleton = isLoadingPRs || (isFetchingPRs && !prQueryResult);
+  // ... add for other sections like ActivityTabs, StatisticsGrid if needed based on their data source
+
+  const combinedError = userProfileAndStatsQuery.error?.message ?? pullRequestsQuery.error?.message ?? null;
+
   return (
-    <div className="min-h-screen transition-colors duration-200 bg-white dark:bg-black text-neutral-900 dark:text-neutral-200 p-3 md:p-5">
-      <div className="max-w-7xl mx-auto">
-        <DashboardHeader
-          currentUsername={currentUsername}
-          isDarkTheme={isDarkTheme}
-          toggleTheme={toggleTheme}
-          onUsernameChange={handleUsernameChange}
-          onRefreshAll={refreshAll}
-          refreshing={refreshing}
-          loadingStats={loadingStats}
-          loadingPRs={loadingPRs}
-          sessionStatus={sessionStatus}
-        />
+    <>
+      <DashboardHeader
+        currentUsername={currentUsername}
+        isDarkTheme={isDarkTheme}
+        toggleTheme={toggleTheme}
+        onUsernameChange={handleUsernameChange}
+        onRefreshAll={refreshAll}
+        refreshing={isFetchingStats || isFetchingPRs} // Any fetch activity
+        loadingStats={isFetchingStats} // Specific to stats
+        loadingPRs={isFetchingPRs}     // Specific to PRs
+        sessionStatus={sessionStatus}
+      />
+      <div className="min-h-screen transition-colors duration-200 bg-white dark:bg-black text-neutral-900 dark:text-neutral-200 p-3 mt-12 ">
+        <div className="max-w-[87rem] mx-auto">
 
-        <DashboardErrorAlert
-          error={error}
-          currentUsername={currentUsername}
-          refreshing={refreshing}
-        />
+          <DashboardErrorAlert
+            error={combinedError}
+            currentUsername={currentUsername}
+            refreshing={isFetchingStats || isFetchingPRs}
+          />
 
-        {/* Main content area with staggered animations */}
-        {sessionStatus === 'authenticated' && currentUsername ? (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-4 md:space-y-6" // Adds spacing between animated sections
-          >
-            {/* 1. User Profile Section */}
-            <motion.div variants={sectionVariants}>
-              {
-                // Logic to display skeleton, profile, or not found message
-                (loadingStats && !userProfile && !error && !refreshing) ? (
+          {sessionStatus === 'authenticated' && currentUsername ? (
+            <motion.div
+              key={currentUsername} // Add key here to force re-render of container on username change, resetting animations
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="space-y-4 md:space-y-6"
+            >
+              {/* 1. User Profile Section */}
+              <motion.div variants={sectionVariants}>
+                {showProfileSkeleton && !combinedError ? (
                   <UserProfileSkeleton />
-                ) : userProfile ? (
-                  <UserProfileDisplay // Removed the inner motion.div here
-                    userProfile={userProfile}
+                ) : userProfileData ? (
+                  <UserProfileDisplay
+                    userProfile={userProfileData}
                     currentUsername={currentUsername}
-                    activityStats={activityStats}
+                    activityStats={activityStatsData}
+                    isInitialLoad={isInitialProfileDataLoad || isLoadingStats} // Animate fully if initial or explicit loading
                   />
-                ) : !loadingStats && !userProfile && !error ? (
+                ) : !isLoadingStats && !isFetchingStats && !userProfileData && !combinedError ? (
                   <div
                     className="p-4 md:p-6 text-center text-neutral-500 dark:text-neutral-400 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg flex items-center justify-center"
                     style={{ minHeight: '180px' }}
                   >
                     Profile for "<strong>{currentUsername}</strong>" not found or is not available.
                   </div>
-                ) : (!loadingStats && !userProfile && error && !refreshing) ? null : ( // If error, DashboardErrorAlert handles it.
-                  // Show skeleton if loading for a new user (after username change) or initial load if not covered by main loader
-                  (loadingStats || (!userProfile && !error && !refreshing)) && <UserProfileSkeleton />
-                )
-              }
-            </motion.div>
+                ) : null}
+              </motion.div>
 
-            {/* 2. Pull Request Section */}
-            <motion.div variants={sectionVariants}>
-              <PullRequestSection
-                currentUsername={currentUsername}
-                featuredPRs={featuredPRs}
-                loadingPRs={loadingPRs}
-                sessionStatus={sessionStatus}
-              />
-            </motion.div>
+              {/* 2. Pull Request Section */}
+              <motion.div variants={sectionVariants}>
+                <PullRequestSection
+                  currentUsername={currentUsername}
+                  featuredPRs={featuredPRsData}
+                  loadingPRs={showPRSkeleton} // Use specific skeleton flag
+                  sessionStatus={sessionStatus}
+                />
+              </motion.div>
 
-            {/* 3. Activity Tabs Section */}
-            <motion.div variants={sectionVariants}>
-              <ActivityTabs
-                currentUsername={currentUsername}
-                contributionBreakdown={contributionBreakdown}
-                loadingStats={loadingStats}
-                sessionStatus={sessionStatus}
-              />
-            </motion.div>
+              {/* 3. Activity Tabs Section */}
+              <motion.div variants={sectionVariants}>
+                <ActivityTabs
+                  currentUsername={currentUsername}
+                  contributionBreakdown={contributionBreakdown}
+                  loadingStats={showProfileSkeleton} // Tie to profile skeleton for now
+                  sessionStatus={sessionStatus}
+                />
+              </motion.div>
 
-            {/* 4. Statistics Grid Section */}
-            <motion.div variants={sectionVariants}>
-              <StatisticsGrid
-                blocks={blocks}
-                loadingStats={loadingStats}
-                sessionStatus={sessionStatus}
-                dndSensors={dndStatSensors}
-                onDragStart={handleDragStartSB}
-                onDragEnd={handleDragEndSB}
-                onDragCancel={handleDragCancelSB}
-                activeBlockId={activeStatBlockId}
-                activeBlockData={activeSBData}
-                currentUsername={currentUsername}
-                error={error}
-                userProfile={userProfile}
-              />
+              {/* 4. Statistics Grid Section */}
+              <motion.div variants={sectionVariants}>
+                <StatisticsGrid
+                  blocks={dndBlocks}
+                  loadingStats={showProfileSkeleton} // Tie to profile skeleton for now
+                  sessionStatus={sessionStatus}
+                  dndSensors={dndStatSensors}
+                  onDragStart={handleDragStartSB}
+                  onDragEnd={handleDragEndSB}
+                  onDragCancel={handleDragCancelSB}
+                  activeBlockId={activeStatBlockId}
+                  activeBlockData={activeSBData}
+                  currentUsername={currentUsername}
+                  error={combinedError}
+                  userProfile={userProfileData}
+                />
+              </motion.div>
             </motion.div>
-          </motion.div>
-        ) : sessionStatus === 'unauthenticated' && currentUsername && !error ? (
-          <div
-            className="my-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 dark:bg-yellow-900/50 dark:border-yellow-600 dark:text-yellow-300 rounded-md shadow-sm text-center flex items-center justify-center"
-            style={{ minHeight: '100px' }}
-          >
-            Please sign in to view the full profile for <strong className="font-semibold">{currentUsername}</strong>.
-          </div>
-        ) : null}
+          ) : sessionStatus === 'unauthenticated' && currentUsername && !combinedError ? (
+            <div
+              className="my-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 dark:bg-yellow-900/50 dark:border-yellow-600 dark:text-yellow-300 rounded-md shadow-sm text-center flex items-center justify-center"
+              style={{ minHeight: '100px' }}
+            >
+              Please sign in to view the full profile for <strong className="font-semibold">{currentUsername}</strong>.
+            </div>
+          ) : null}
 
-        {(!currentUsername || (sessionStatus === 'unauthenticated' && !error)) && (
-          <AuthPrompt
-            sessionStatus={sessionStatus}
-            loadingStats={loadingStats}
-            loadingPRs={loadingPRs}
-          />
-        )}
+          {(!currentUsername || (sessionStatus === 'unauthenticated' && !combinedError)) && (
+            <AuthPrompt
+              sessionStatus={sessionStatus}
+              loadingStats={isLoadingStats}
+              loadingPRs={isLoadingPRs}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

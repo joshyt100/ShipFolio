@@ -1,7 +1,8 @@
 import React from "react";
 import GitHubCalendar from "react-github-calendar";
 import { Card, CardContent } from "@/components/ui/card";
-import { RadialBarChart, RadialBar, Tooltip, ResponsiveContainer, Cell } from "recharts"; // Added Cell for individual bar colors if needed
+import { RadialBarChart, RadialBar, Tooltip, ResponsiveContainer, Cell } from "recharts"; // Added Cell for individual bar colors if <needed></needed>
+import { useTheme } from "next-themes";
 
 interface ActivityVisualizerProps {
   username: string;
@@ -16,8 +17,13 @@ export const ActivityVisualizer: React.FC<ActivityVisualizerProps> = ({
   // calendarData, // Uncomment if you directly pass data to GitHubCalendar
   longestStreak,
   activeDays,
-  isDarkTheme,
+  // isDarkTheme,
 }) => {
+
+
+  const { theme } = useTheme();
+  const isDarkTheme = (theme === 'dark')
+
   const chartData = [
     { name: 'Longest Streak', value: longestStreak, fill: isDarkTheme ? '#FFB74D' : '#FB8C00' }, // Orange
     { name: 'Active Days', value: activeDays, fill: isDarkTheme ? '#64B5F6' : '#1976D2' },    // Blue
@@ -41,6 +47,7 @@ export const ActivityVisualizer: React.FC<ActivityVisualizerProps> = ({
   };
 
 
+
   return (
     <Card className="shadow-md border-neutral-200/90 dark:border-neutral-700/80 bg-white/95 dark:bg-neutral-800/90">
       <CardContent className="p-3.5 sm:p-4">
@@ -50,7 +57,7 @@ export const ActivityVisualizer: React.FC<ActivityVisualizerProps> = ({
           </h3>
           <div className="flex items-center gap-3.5">
             <div className="flex items-center">
-              <div className="h-2.5 w-2.5 rounded-full mr-1.5" style={{ backgroundColor: chartData[0].fill }}></div>
+              <div className="h-2.5 w-2.5 rounded-full mr-1.5" style={{ backgroundColor: chartData[0]?.fill }}></div>
               <span className="text-xs text-neutral-500 dark:text-neutral-400">
                 Streak:
               </span>
@@ -59,7 +66,7 @@ export const ActivityVisualizer: React.FC<ActivityVisualizerProps> = ({
               </span>
             </div>
             <div className="flex items-center">
-              <div className="h-2.5 w-2.5 rounded-full mr-1.5" style={{ backgroundColor: chartData[1].fill }}></div>
+              <div className="h-2.5 w-2.5 rounded-full mr-1.5" style={{ backgroundColor: chartData[1]?.fill }}></div>
               <span className="text-xs text-neutral-500 dark:text-neutral-400">
                 Active:
               </span>
@@ -104,7 +111,8 @@ export const ActivityVisualizer: React.FC<ActivityVisualizerProps> = ({
                   }}
                   labelStyle={{ color: isDarkTheme ? '#eee' : '#333', marginBottom: '4px', fontWeight: '600' }}
                   itemStyle={{ color: isDarkTheme ? '#ddd' : '#555' }}
-                  formatter={(value: number, name: string, props) => [`${value} days`, props.payload.name]} // Use payload name for label
+                  // get rid of the type error for props.payload.name
+                  formatter={(value: number, name: string, props) => [`${value} days`, props.payload.name: string]} // Use payload name for label
                 // labelFormatter={(label, payload) => payload && payload.length ? payload[0].payload.name : ''} Removed as formatter is better here
                 />
               </RadialBarChart>
