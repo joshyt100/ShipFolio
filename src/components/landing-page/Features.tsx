@@ -47,11 +47,11 @@ export function Features() {
       <div className="pointer-events-none absolute bottom-20 left-1/3 h-60 w-60 rounded-full bg-primary/5 blur-3xl z-0" />
 
       {/* Heading (above blur) */}
-      <div className="mx-auto max-w-3xl text-center space-y-2 mb-8 relative z-10">
+      <div className="mx-auto max-w-3xl text-center space-y-2 mb-10 relative z-10">
         <div className="rounded-full border border-border/40 bg-background/80 px-3 py-1 text-sm font-medium text-primary mx-auto w-fit">
           Features
         </div>
-        <h2 className="text-2xl font-bold tracking-tight">
+        <h2 className="text-3xl font-bold tracking-tight">
           Everything you need to{" "}
           <span className="bg-gradient-to-tr from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent dark:from-primary dark:via-primary/80 dark:to-primary/60">
             showcase your GitHub & open source contributions
@@ -72,8 +72,8 @@ export function Features() {
               {f.icon}
             </div>
             <div className="flex-1">
-              <h3 className=" font-semibold text-md">{f.title}</h3>
-              <ul className="mt-1 space-y-1 text-sm leading-tight text-muted-foreground">
+              <h3 className=" font-semibold text-lg">{f.title}</h3>
+              <ul className="mt-1 space-y-1 text-md leading-tight text-muted-foreground">
                 {f.points.map((pt) => (
                   <li key={pt} className="flex items-start gap-2 text-sm">
                     <Check className="mt-0.5 h-3 w-3 text-primary" />

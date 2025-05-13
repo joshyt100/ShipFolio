@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button"
 
 export function PRShowcase() {
   return (
-    <section className="container mx-auto py-8 max-w-screen-xl">
+    <section className="container mb-16 mx-auto py-8 max-w-screen-xl">
       <div className="mx-auto max-w-[48rem] text-center space-y-2 mb-6">
         <div className="rounded-full border border-border/40 bg-background/80 px-3 py-1 text-sm font-medium text-primary mx-auto w-fit">
           Professional Showcase
         </div>
-        <h2 className="text-2xl font-bold tracking-tight">
+        <h2 className="text-3xl font-bold tracking-tight">
           Your GitHub portfolio,{" "}
           <span className="bg-gradient-to-tr from-rose-500 via-rose-500/80 to-rose-500/60 bg-clip-text text-transparent dark:from-rose-500 dark:via-rose-500/80 dark:to-rose-500/60">
             anywhere you need it

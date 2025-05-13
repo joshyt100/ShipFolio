@@ -19,7 +19,7 @@ export default function LandingPage() {
         {/* <FAQ /> */}
         {/* <CTA /> */}
       </main>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   )
 }

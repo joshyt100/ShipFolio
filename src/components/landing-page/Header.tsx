@@ -23,12 +23,6 @@ export function Header() {
             <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground">
               Features
             </Link>
-            <Link href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-              How It Works
-            </Link>
-            <Link href="#faq" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-              FAQ
-            </Link>
           </nav>
           <div className="flex items-center gap-3">
             <ModeToggle />
@@ -51,12 +45,6 @@ export function Header() {
               <div className="flex flex-col gap-6 mt-8">
                 <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground">
                   Features
-                </Link>
-                <Link href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-                  How It Works
-                </Link>
-                <Link href="#faq" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-                  FAQ
                 </Link>
                 <Button asChild variant="default" size="sm" className="gap-2 rounded-md px-5 shadow-sm w-full">
                   <Link href="/signin" className="flex items-center justify-center">
