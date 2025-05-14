@@ -69,3 +69,20 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model GitHubStatsCache {
+  username              String   @id
+  profileData           Json
+  basicStats            Json
+  topLanguages          Json
+  contributionBreakdown Json
+  activityStats         Json
+  lastFetchedAt         DateTime @default(now()) @updatedAt
+}
+
+model GitHubPRsCache {
+  username      String   @id
+  prs           Json
+  lastFetchedAt DateTime @default(now()) @updatedAt
+}
+

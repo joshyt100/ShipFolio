@@ -1,261 +1,322 @@
+// src/server/api/routers/github.ts
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { fetchGitHubGraphQL } from "~/lib/github-graphql"; // Adjusted path
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import { fetchGitHubGraphQL } from "~/lib/github-graphql"; // Assuming this path is correct
+import { db } from "~/server/db";
 import {
   type UserProfile,
   type PullRequest,
   type LanguageStat,
   type ContributionTypeStat,
-  type GraphQLUserStatsData,
-  type GraphQLUserPullRequestsData,
   type ContributionActivityStats,
+  // type GraphQLUserStatsData, // Not directly used in this file after initial fetch
+  // type GraphQLUserPullRequestsData, // Not directly used in this file after initial fetch
   type GraphQLContributionCalendar,
   type GraphQLContributionDay,
   USER_STATS_QUERY,
   USER_PULL_REQUESTS_QUERY,
   MAX_TOP_LANGUAGES_DISPLAY,
   transformGraphQLPRToUIPR,
-  // type Block, // For return type hint, actual block construction might be client-side or simplified
-} from "~/components/dashboard/types"; // Adjusted path
+} from "~/components/dashboard/types"; // Assuming this path is correct
 
-// Helper function (from your original DashboardPage)
-function calculateActivityHighlights(
-  calendar: GraphQLContributionCalendar | null | undefined
-): ContributionActivityStats {
+// Utility function - logging within it might be excessive unless debugging its specific logic
+function calculateActivityHighlights(calendar: GraphQLContributionCalendar | null | undefined): ContributionActivityStats {
   const stats: ContributionActivityStats = {
     busiestDayOfWeek: null,
     mostCommitsSingleDay: null,
     longestStreak: null,
   };
 
-  if (!calendar?.weeks || calendar.weeks.length === 0) {
-    return stats;
-  }
+  if (!calendar?.weeks?.length) return stats;
 
-  const allCalendarDaysChronological: GraphQLContributionDay[] = calendar.weeks
-    .flatMap(week => week.contributionDays)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const days = calendar.weeks.flatMap(week => week.contributionDays).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  if (!days.length) return stats;
 
-  if (allCalendarDaysChronological.length === 0) {
-    return stats;
-  }
+  let peakDay: GraphQLContributionDay | null = null;
+  let currentStreak = 0, longestStreak = 0;
+  const dayTotals: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
-  let peakDayActivity: GraphQLContributionDay | null = null;
-  for (const day of allCalendarDaysChronological) {
+  for (const day of days) {
     if (day.contributionCount > 0) {
-      if (!peakDayActivity || day.contributionCount > peakDayActivity.contributionCount) {
-        peakDayActivity = day;
-      }
+      currentStreak++;
+      dayTotals[day.weekday] += day.contributionCount;
+      if (!peakDay || day.contributionCount > peakDay.contributionCount) peakDay = day;
+    } else {
+      if (currentStreak > longestStreak) longestStreak = currentStreak;
+      currentStreak = 0;
     }
   }
-  if (peakDayActivity) {
+  if (currentStreak > longestStreak) longestStreak = currentStreak;
+
+  if (peakDay) {
     stats.mostCommitsSingleDay = {
-      date: new Date(peakDayActivity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      count: peakDayActivity.contributionCount,
+      date: new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      count: peakDay.contributionCount,
     };
   }
 
-  let currentStreakDays = 0;
-  let longestStreakDays = 0;
-  for (const day of allCalendarDaysChronological) {
-    if (day.contributionCount > 0) {
-      currentStreakDays++;
-    } else {
-      if (currentStreakDays > longestStreakDays) {
-        longestStreakDays = currentStreakDays;
-      }
-      currentStreakDays = 0;
-    }
-  }
-  if (currentStreakDays > longestStreakDays) {
-    longestStreakDays = currentStreakDays;
-  }
-  if (longestStreakDays > 0) {
-    stats.longestStreak = { days: longestStreakDays, startDate: "", endDate: "" };
+  if (longestStreak > 0) {
+    // Note: startDate and endDate calculation was missing in the original, adding placeholders
+    stats.longestStreak = { days: longestStreak, startDate: "N/A", endDate: "N/A" };
   }
 
-  const dayTotals: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-  allCalendarDaysChronological.forEach(day => {
-    if (day.contributionCount > 0) {
-      dayTotals[day.weekday] = (dayTotals[day.weekday] ?? 0) + day.contributionCount;
-    }
-  });
-
-  let busiestWeekday = -1;
-  let maxContributionsOnWeekday = -1;
-  for (const weekdayStr in dayTotals) {
-    const weekday: number = parseInt(weekdayStr);
-    const contributions = dayTotals[weekday] ?? 0;
-    if (contributions > maxContributionsOnWeekday) {
-      maxContributionsOnWeekday = contributions;
-      busiestWeekday = weekday;
+  const dayEntries = Object.entries(dayTotals);
+  if (dayEntries.length > 0) {
+    const maxWeekday = dayEntries.reduce((a, b) => b[1] > a[1] ? b : a);
+    if (+maxWeekday[0] >= 0 && maxWeekday[1] > 0) { // ensure there were contributions
+      stats.busiestDayOfWeek = {
+        day: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][+maxWeekday[0]],
+        averageContributions: 0, // Note: averageContributions calculation was missing
+      };
     }
   }
-  if (busiestWeekday !== -1 && maxContributionsOnWeekday > 0) {
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    stats.busiestDayOfWeek = { day: dayNames[busiestWeekday] ?? "Unknown", averageContributions: 0 };
-  }
-
   return stats;
 }
 
-
 export const githubRouter = createTRPCRouter({
-  getUserProfileAndStats: protectedProcedure
+  refreshGitHubData: protectedProcedure
     .input(z.object({ username: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const logPrefix = `[githubRouter.refreshGitHubData USER: ${input.username}]`;
+      console.log(`${logPrefix} 🔄 Initiating refresh.`);
+
       try {
-        const gqlResponse = await fetchGitHubGraphQL<GraphQLUserStatsData>(
-          USER_STATS_QUERY, { username: input.username }, ctx.session
-        );
+        // 1. Fetch User Stats and Profile from GitHub
+        console.log(`${logPrefix} Fetching user stats and profile from GitHub...`);
+        const statsRes = await fetchGitHubGraphQL(USER_STATS_QUERY, { username: input.username }, ctx.session);
 
-        if (!gqlResponse?.user) {
-          // User not found or data inaccessible, but not necessarily a TRPCError yet
-          // The client can decide how to handle a null profile.
-          // If GitHub API itself threw an error that fetchGitHubGraphQL didn't catch and rethrow as a user-friendly one,
-          // that error might propagate. fetchGitHubGraphQL is designed to throw on HTTP/network errors.
-          return {
-            userProfile: null,
-            basicStats: null,
-            topLanguages: [],
-            contributionBreakdown: [],
-            activityStats: null,
-          };
+        // It's good practice to log a sanitized version of what you received, or at least presence of key data
+        if (!statsRes?.user) {
+          console.error(`${logPrefix} ❌ GitHub API did not return user data. Response:`, statsRes);
+          throw new TRPCError({ code: "NOT_FOUND", message: `GitHub user '${input.username}' not found or API error.` });
         }
+        const profile = statsRes.user;
+        console.log(`${logPrefix} ✅ Successfully fetched profile for GitHub user: ${profile.login}`);
 
-        const profileData = gqlResponse.user;
+        // 2. Process User Profile
         const userProfile: UserProfile = {
-          name: profileData.name, login: profileData.login, bio: profileData.bio,
-          avatar_url: profileData.avatarUrl, followers: profileData.followers.totalCount,
-          public_gists: profileData.gists.totalCount, public_repos: profileData.repositories.totalCount,
-          createdAt: profileData.createdAt,
+          name: profile.name,
+          login: profile.login,
+          bio: profile.bio,
+          avatar_url: profile.avatarUrl,
+          followers: profile.followers.totalCount,
+          public_gists: profile.gists.totalCount,
+          public_repos: profile.repositories.totalCount,
+          createdAt: profile.createdAt,
         };
+        console.log(`${logPrefix} Processed user profile data.`);
 
-        const totalStars = profileData.repositories.nodes?.reduce((sum, repo) => sum + (repo.stargazerCount ?? 0), 0) ?? 0;
-        const totalForks = profileData.repositories.nodes?.reduce((sum, repo) => sum + (repo.forkCount ?? 0), 0) ?? 0;
-        let yearsOnGitHubText = "N/A";
-        if (profileData.createdAt) {
-          const memberForMs = new Date().getTime() - new Date(profileData.createdAt).getTime();
-          let years = Math.floor(memberForMs / (1000 * 60 * 60 * 24 * 365.25));
-          if (years < 0) years = 0;
-          if (years < 1 && memberForMs > 0) yearsOnGitHubText = "< 1 year";
-          else if (years === 0 && memberForMs <= 0) yearsOnGitHubText = "New Member";
-          else yearsOnGitHubText = `${years} year${years !== 1 ? "s" : ""}`;
-        }
-
-        const basicStats = { // This will be used by client to build the 'Block[]' array
-          followers: profileData.followers.totalCount || 0,
-          totalStars,
-          totalForks,
-          publicRepos: profileData.repositories.totalCount || 0,
-          publicGists: profileData.gists.totalCount || 0,
-          yearsOnGitHub: yearsOnGitHubText,
+        // 3. Process Basic Stats
+        const basicStats = {
+          followers: profile.followers.totalCount,
+          totalStars: profile.repositories.nodes?.reduce((a, r) => a + (r.stargazerCount ?? 0), 0) ?? 0,
+          totalForks: profile.repositories.nodes?.reduce((a, r) => a + (r.forkCount ?? 0), 0) ?? 0,
+          publicRepos: profile.repositories.totalCount,
+          publicGists: profile.gists.totalCount,
+          yearsOnGitHub: (() => {
+            const diff = new Date().getTime() - new Date(profile.createdAt).getTime();
+            const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+            return years < 1 ? "< 1 year" : `${years} year${years > 1 ? "s" : ""}`;
+          })(),
         };
+        console.log(`${logPrefix} Processed basic stats.`);
 
+        // 4. Process Top Languages
         const languageMap = new Map<string, { size: number; color: string | null }>();
-        profileData.repositories.nodes?.forEach(repo => {
-          repo.languages?.edges?.forEach(langEdge => {
-            if (langEdge.node.name && langEdge.size > 0) {
-              const existing = languageMap.get(langEdge.node.name);
-              languageMap.set(langEdge.node.name, {
-                size: (existing?.size ?? 0) + langEdge.size,
-                color: existing?.color ?? langEdge.node.color,
-              });
-            }
+        profile.repositories.nodes?.forEach(repo => {
+          repo.languages?.edges?.forEach(({ node, size }) => {
+            if (!node.name || size <= 0) return;
+            const prev = languageMap.get(node.name);
+            languageMap.set(node.name, {
+              size: (prev?.size ?? 0) + size,
+              color: prev?.color ?? node.color,
+            });
           });
         });
-        const totalLanguageSize = Array.from(languageMap.values()).reduce((sum, lang) => sum + lang.size, 0);
-        const topLanguages: LanguageStat[] = Array.from(languageMap.entries())
-          .map(([name, data]) => ({ name, size: data.size, color: data.color, percentage: totalLanguageSize > 0 ? parseFloat(((data.size / totalLanguageSize) * 100).toFixed(1)) : 0 }))
-          .sort((a, b) => b.size - a.size).slice(0, MAX_TOP_LANGUAGES_DISPLAY);
+        const totalLangSize = [...languageMap.values()].reduce((a, l) => a + l.size, 0);
+        const topLanguages: LanguageStat[] = [...languageMap.entries()]
+          .map(([name, { size, color }]) => ({
+            name,
+            size,
+            color,
+            percentage: totalLangSize ? +(100 * size / totalLangSize).toFixed(1) : 0,
+          }))
+          .sort((a, b) => b.size - a.size)
+          .slice(0, MAX_TOP_LANGUAGES_DISPLAY);
+        console.log(`${logPrefix} Processed top languages. Found ${topLanguages.length} languages.`);
 
-        let contributionBreakdown: ContributionTypeStat[] = [];
-        let activityStats: ContributionActivityStats | null = null;
-        if (profileData.contributionsCollection) {
-          const contribs = profileData.contributionsCollection;
-          const rawBreakdown = [
-            { type: "commits" as const, label: "Commits", count: contribs.totalCommitContributions, iconName: "GitCommit", colorClass: "bg-sky-500" },
-            { type: "pullRequests" as const, label: "Pull Requests", count: contribs.totalPullRequestContributions, iconName: "GitPullRequest", colorClass: "bg-purple-500" },
-            { type: "reviews" as const, label: "Code Reviews", count: contribs.totalPullRequestReviewContributions, iconName: "Eye", colorClass: "bg-teal-500" },
-            { type: "issues" as const, label: "Issues Opened", count: contribs.totalIssueContributions, iconName: "AlertCircle", colorClass: "bg-orange-500" },
-          ];
-          const totalBreakdownContributions = rawBreakdown.reduce((sum, item) => sum + item.count, 0);
-          contributionBreakdown = rawBreakdown
-            .map(item => ({ ...item, percentage: totalBreakdownContributions > 0 ? parseFloat(((item.count / totalBreakdownContributions) * 100).toFixed(1)) : 0, }))
-            .sort((a, b) => b.count - a.count);
-          activityStats = calculateActivityHighlights(contribs.contributionCalendar);
+        // 5. Process Contribution Breakdown
+        const contribs = profile.contributionsCollection;
+        const contributionBreakdown: ContributionTypeStat[] = [
+          { type: "commits", label: "Commits", count: contribs.totalCommitContributions, iconName: "GitCommit", colorClass: "bg-sky-500" },
+          { type: "pullRequests", label: "Pull Requests", count: contribs.totalPullRequestContributions, iconName: "GitPullRequest", colorClass: "bg-purple-500" },
+          { type: "reviews", label: "Code Reviews", count: contribs.totalPullRequestReviewContributions, iconName: "Eye", colorClass: "bg-teal-500" },
+          { type: "issues", label: "Issues Opened", count: contribs.totalIssueContributions, iconName: "AlertCircle", colorClass: "bg-orange-500" },
+        ];
+        const totalContribs = contributionBreakdown.reduce((a, i) => a + i.count, 0);
+        contributionBreakdown.forEach(i => i.percentage = totalContribs ? +(100 * i.count / totalContribs).toFixed(1) : 0);
+        console.log(`${logPrefix} Processed contribution breakdown.`);
+
+        // 6. Calculate Activity Highlights
+        const activityStats = calculateActivityHighlights(contribs.contributionCalendar);
+        console.log(`${logPrefix} Calculated activity highlights.`);
+
+        // 7. Upsert Stats into Cache
+        console.log(`${logPrefix} Upserting processed stats into database cache...`);
+        await db.gitHubStatsCache.upsert({
+          where: { username: input.username },
+          create: { username: input.username, profileData: userProfile, basicStats, topLanguages, contributionBreakdown, activityStats },
+          update: { profileData: userProfile, basicStats, topLanguages, contributionBreakdown, activityStats },
+        });
+        console.log(`${logPrefix} ✅ Successfully upserted stats cache.`);
+
+        // 8. Fetch Pull Requests from GitHub
+        console.log(`${logPrefix} Fetching user pull requests from GitHub...`);
+        const prRes = await fetchGitHubGraphQL(USER_PULL_REQUESTS_QUERY, { searchQueryString: `author:${input.username} type:pr sort:updated-desc`, first: 15 }, ctx.session);
+
+        if (!prRes?.search) {
+          console.warn(`${logPrefix} GitHub API did not return search data for PRs. Response:`, prRes);
+          // Depending on strictness, you might throw or continue with empty PRs
         }
+        const pullRequests = prRes?.search?.edges?.map(e => e?.node ? transformGraphQLPRToUIPR(e.node) : null).filter((pr): pr is PullRequest => pr !== null) ?? [];
+        console.log(`${logPrefix} ✅ Successfully fetched ${pullRequests.length} pull requests.`);
 
-        return {
-          userProfile,
-          basicStats,
-          topLanguages,
-          contributionBreakdown,
-          activityStats,
-        };
+        // 9. Upsert PRs into Cache
+        console.log(`${logPrefix} Upserting processed PRs into database cache...`);
+        await db.gitHubPRsCache.upsert({
+          where: { username: input.username },
+          create: { username: input.username, prs: pullRequests },
+          update: { prs: pullRequests },
+        });
+        console.log(`${logPrefix} ✅ Successfully upserted PRs cache.`);
+
+        console.log(`${logPrefix} 🎉 Successfully refreshed all GitHub data.`);
+        return { userProfile, basicStats, topLanguages, contributionBreakdown, activityStats, pullRequests };
 
       } catch (error) {
+        console.error(`${logPrefix} ❌ Error during GitHub data refresh:`, error);
         if (error instanceof TRPCError) {
-          console.error(`[TRPC Error] getUserProfileAndStats for ${input.username}:`, error);
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: error.message ?? "Failed to fetch user profile and stats from GitHub.",
-            cause: error,
-          });
-        } else {
-          console.error(`[Unexpected Error] getUserProfileAndStats for ${input.username}:`, error);
+          throw error; // Re-throw TRPCError instances
         }
+        // For other errors, wrap them in a TRPCError
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `An unexpected error occurred while refreshing GitHub data for ${input.username}. Reason: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          cause: error,
+        });
       }
+    }),
+
+  getUserProfileAndStats: protectedProcedure
+    .input(z.object({ username: z.string() }))
+    .query(async ({ input }) => {
+      const logPrefix = `[githubRouter.getUserProfileAndStats USER: ${input.username}]`;
+      console.log(`${logPrefix} Attempting to fetch profile and stats from cache.`);
+
+      const cache = await db.gitHubStatsCache.findUnique({ where: { username: input.username } });
+
+      if (!cache) {
+        console.warn(`${logPrefix} ⚠️ No cached stats found.`);
+        throw new TRPCError({ code: "NOT_FOUND", message: "No cached stats found." });
+      }
+
+      console.log(`${logPrefix} ✅ Found cached profile and stats.`);
+      return {
+        userProfile: cache.profileData as UserProfile, // Added type assertion
+        basicStats: cache.basicStats, // Consider adding type assertion if Json type isn't specific enough
+        topLanguages: cache.topLanguages as LanguageStat[], // Added type assertion
+        contributionBreakdown: cache.contributionBreakdown as ContributionTypeStat[], // Added type assertion
+        activityStats: cache.activityStats as ContributionActivityStats, // Added type assertion
+      };
     }),
 
   getUserPullRequests: protectedProcedure
-    .input(z.object({ username: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
-      try {
-        const prSearchString = `author:${input.username} type:pr sort:updated-desc`;
-        const gqlResponse = await fetchGitHubGraphQL<GraphQLUserPullRequestsData>(
-          USER_PULL_REQUESTS_QUERY,
-          { searchQueryString: prSearchString, first: 15 },
-          ctx.session
-        );
+    .input(z.object({ username: z.string() }))
+    .query(async ({ input }) => {
+      const logPrefix = `[githubRouter.getUserPullRequests USER: ${input.username}]`;
+      console.log(`${logPrefix} Attempting to fetch pull requests from cache.`);
 
-        if (gqlResponse?.search?.edges) {
-          const formattedPRs = gqlResponse.search.edges
-            .map(edge => edge?.node ? transformGraphQLPRToUIPR(edge.node) : null)
-            .filter((pr): pr is PullRequest => pr !== null);
-          return formattedPRs;
-        }
-        // Handle cases where search.edges might be null or undefined even if gqlResponse.search exists
-        if (gqlResponse && (!gqlResponse.search || typeof gqlResponse.search.edges === 'undefined')) {
-          console.warn("GraphQL PR response structure unexpected or empty:", gqlResponse);
-        }
-        return []; // Return empty array if no PRs or unexpected structure
+      const cache = await db.gitHubPRsCache.findUnique({ where: { username: input.username } });
 
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          console.error(`[TRPC Error] getUserPullRequests for ${input.username}:`, error);
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: error.message ?? "Failed to fetch pull requests from GitHub.",
-            cause: error,
-          });
-        }
-        else {
-          console.error(`[Unexpected Error] getUserPullRequests for ${input.username}:`, error);
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "An unexpected error occurred while fetching pull requests from GitHub.",
-            cause: error,
-          });
-        }
+      if (!cache) {
+        console.warn(`${logPrefix} ⚠️ No cached PRs found. Returning empty array.`);
+        return [];
       }
+
+      console.log(`${logPrefix} ✅ Found ${(cache.prs as PullRequest[]).length} cached PRs.`);
+      return cache.prs as PullRequest[] ?? []; // Added type assertion
     }),
 });
 
-// For `ContributionTypeStat`, added `iconName: string` if you plan to send icon identifiers.
-// The provided `types.ts` doesn't have `iconName` in `ContributionTypeStat`.
-// For simplicity, I'll assume `ActivityTabs` can map types/labels to icons client-side,
-// or you adjust `ContributionTypeStat` to include `iconName` and map it on the client.
-// The `basicStats` object is designed to provide data for the `StatisticsGrid`'s blocks.
-// The client will use `useMemo` to construct the `Block[]` array including the Lucide icons.
+// src/server/api/routers/post.ts (example with basic logging)
+export const postRouter = createTRPCRouter({
+  hello: publicProcedure
+    .input(z.object({ text: z.string() }))
+    .query(({ input, ctx }) => { // Added ctx for consistency if session needed
+      const logPrefix = `[postRouter.hello]`;
+      console.log(`${logPrefix} Received request with text: "${input.text}"`);
+      return {
+        greeting: `Hello ${input.text}`,
+      };
+    }),
+
+  create: protectedProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const logPrefix = `[postRouter.create USER: ${ctx.session.user.id}]`;
+      console.log(`${logPrefix} Attempting to create post with name: "${input.name}"`);
+
+      try {
+        const post = await db.post.create({
+          data: {
+            name: input.name,
+            createdBy: { connect: { id: ctx.session.user.id } },
+          },
+        });
+        console.log(`${logPrefix} ✅ Successfully created post with ID: ${post.id}`);
+        return post;
+      } catch (error) {
+        console.error(`${logPrefix} ❌ Error creating post:`, error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to create post. Reason: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          cause: error,
+        });
+      }
+    }),
+
+  getLatest: protectedProcedure
+    .query(async ({ ctx }) => {
+      const logPrefix = `[postRouter.getLatest USER: ${ctx.session.user.id}]`;
+      console.log(`${logPrefix} Attempting to get latest post.`);
+
+      try {
+        const post = await db.post.findFirst({
+          orderBy: { createdAt: "desc" },
+          where: { createdById: ctx.session.user.id },
+        });
+
+        if (post) {
+          console.log(`${logPrefix} ✅ Found latest post with ID: ${post.id}`);
+        } else {
+          console.log(`${logPrefix} No posts found for user.`);
+        }
+        return post;
+      } catch (error) {
+        console.error(`${logPrefix} ❌ Error fetching latest post:`, error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to fetch latest post. Reason: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          cause: error,
+        });
+      }
+    }),
+
+  getSecretMessage: protectedProcedure
+    .query(({ ctx }) => {
+      const logPrefix = `[postRouter.getSecretMessage USER: ${ctx.session.user.id}]`;
+      console.log(`${logPrefix} Accessing secret message.`);
+      return "you can now see this secret message!";
+    }),
+});
