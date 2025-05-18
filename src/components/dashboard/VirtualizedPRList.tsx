@@ -25,8 +25,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GitPullRequest } from "lucide-react";
 import { SortablePRListItem } from "./SortablePRListItem";
 import { PRListItem } from "./PRListItem"; // For DragOverlay
-import type { PullRequest, VirtualizedPRItem } from "@/app/dashboard/types";
-import { PR_LIST_STORAGE_KEY, PR_ITEM_ESTIMATED_HEIGHT } from "@/app/dashboard/types";
+import type { PullRequest, VirtualizedPRItem } from "./types";
+import { PR_LIST_STORAGE_KEY, PR_ITEM_ESTIMATED_HEIGHT } from "./types";
 
 
 interface VirtualizedPRListProps {
@@ -34,6 +34,7 @@ interface VirtualizedPRListProps {
   isLoading: boolean;
   usernameForEmptyMessage: string;
 }
+
 
 export function VirtualizedPRList({
   pullRequests,
@@ -54,7 +55,8 @@ export function VirtualizedPRList({
       try {
         const storedOrderJSON = localStorage.getItem(PR_LIST_STORAGE_KEY);
         if (storedOrderJSON) {
-          const storedIDs: string[] = JSON.parse(storedOrderJSON);
+          type StoredOrder = string[];
+          const storedIDs: StoredOrder = JSON.parse(storedOrderJSON) as StoredOrder;
           const prMap = new Map(
             newVirtualizedPRs.map((pr) => [pr.id_str, pr])
           );
@@ -176,7 +178,7 @@ export function VirtualizedPRList({
   return (
     <div
       ref={parentRef}
-      className="max-h-[calc(3.5*128px)] min-h-[128px] w-full overflow-auto rounded-lg border bg-neutral-100/60 border-neutral-300 dark:bg-black/30 dark:border-neutral-800 scrollbar-thin scrollbar-thumb-rounded scrollbar-track-transparent scrollbar-thumb-neutral-400 hover:scrollbar-thumb-neutral-500 dark:scrollbar-thumb-neutral-700 dark:hover:scrollbar-thumb-neutral-600"
+      className="max-h-[calc(3.5*128px)] min-h-[128px] w-full overflow-auto rounded-lg border bg-neutral-100/60 border-neutral-400 dark:bg-black/30 dark:border-neutral-700 scrollbar-thin scrollbar-thumb-rounded scrollbar-track-transparent scrollbar-thumb-neutral-400 hover:scrollbar-thumb-neutral-500 dark:scrollbar-thumb-neutral-700 dark:hover:scrollbar-thumb-neutral-600"
     >
       <DndContext
         sensors={sensors}

@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { SortableStatBlock } from "./SortableStatBlock"; // Ensure this component also gets styling updates
 import { cn } from "@/lib/utils";
-import type { Block, UserProfile } from "@/app/dashboard/types"; // Adjusted path if necessary
+import type { Block, UserProfile } from "./types"; // Adjusted path if necessary
 import type { SessionContextValue } from "next-auth/react";
 
 
